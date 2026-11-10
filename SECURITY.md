@@ -3,7 +3,7 @@
 ## Reporting a vulnerability in OpenASV
 
 Please report vulnerabilities privately through
-[GitHub Security Advisories](https://github.com/Deja-Vyx/openasv/security/advisories/new) rather than public issues.
+[GitHub Security Advisories](https://github.com/Deja-Vyx/Open-ASV/security/advisories/new) rather than public issues.
 Include the version, deployment method and steps to reproduce. You will receive an acknowledgement within a few days.
 
 ## Hardening a deployment

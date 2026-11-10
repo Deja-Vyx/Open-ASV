@@ -49,7 +49,7 @@ def _session() -> requests.Session:
     s = requests.Session()
     s.trust_env = False
     s.verify = False
-    s.headers["User-Agent"] = "OpenASV/1.0 (+https://github.com/Deja-Vyx/openasv)"
+    s.headers["User-Agent"] = "OpenASV/1.0 (+https://github.com/Deja-Vyx/Open-ASV)"
     return s
 
 

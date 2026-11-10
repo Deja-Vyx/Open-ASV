@@ -7,7 +7,7 @@
   Scan your Internet-facing components the way an Approved Scanning Vendor does, see exactly what blocks a passing result, and fix it before the quarterly scan.
 </p>
 <p align="center">
-  <a href="https://github.com/Deja-Vyx/openasv/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Deja-Vyx/openasv/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Deja-Vyx/Open-ASV/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Deja-Vyx/Open-ASV/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-007d79"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-007d79">
   <img alt="PCI DSS v4.0.1" src="https://img.shields.io/badge/PCI%20DSS-v4.0.1-007d79">
@@ -99,7 +99,7 @@ Plus: findings workbench with filters, REST API, CI-friendly CLI with exit codes
 Requirements: Docker with Compose, about 5 GB of disk and 4 GB of memory for Docker (OWASP ZAP is the heaviest part).
 
 ```bash
-git clone https://github.com/Deja-Vyx/openasv.git
+git clone https://github.com/Deja-Vyx/Open-ASV.git
 cd openasv
 cp .env.example .env            # set ZAP_API_KEY and, if others can reach the host, OPENASV_ADMIN_PASSWORD
 docker compose up -d --build

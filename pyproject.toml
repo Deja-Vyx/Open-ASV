@@ -35,8 +35,8 @@ dev = ["pytest>=8", "ruff>=0.6"]
 openasv = "openasv.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Deja-Vyx/openasv"
-Issues = "https://github.com/Deja-Vyx/openasv/issues"
+Homepage = "https://github.com/Deja-Vyx/Open-ASV"
+Issues = "https://github.com/Deja-Vyx/Open-ASV/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "openasv.__version__"}
