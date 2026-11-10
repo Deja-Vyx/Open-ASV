@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% set s = r.scan %}{% set ev = r.ev %}{% set locked = s.finalized_at %}
+{% block title %}Findings — scan #{{ s.id }}{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('scope_page', sid=s.scope_id) }}">{{ r.scope.name }}</a> / <a href="{{ url_for('scan_page', scan_id=s.id) }}">Scan #{{ s.id }}</a></div>
+    <h1>Findings workbench</h1>
+    <p class="sub">Review results, declare special notes and dispute findings before finalising the report.</p>
+  </div>
+  <div class="actions">{{ ui.seal(ev.overall) }}<a class="btn" href="{{ url_for('report_page', scan_id=s.id) }}">Report</a>{% if not locked %}<a class="btn primary" href="{{ url_for('finalize', scan_id=s.id) }}">Finalise</a>{% endif %}</div>
+</header>
+{% if locked %}<p class="notice info">This report was finalised on {{ s.finalized_at|dt }} and is read-only.</p>{% endif %}
+
+<section class="panel">
+  <h2>Before this scan can pass</h2>
+  <ul class="checklist">{% for label, ok in ev.checklist %}<li class="{{ 'ok' if ok }}">{{ label }}</li>{% endfor %}</ul>
+  {% if prev and not locked %}
+  <details class="disclose small">
+    <summary>Re-submit accepted disputes from an earlier scan</summary>
+    <form method="post" action="{{ url_for('carry', scan_id=s.id) }}" class="actions">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <select name="from_scan" aria-label="Earlier scan">{% for p in prev %}<option value="{{ p.id }}">Scan #{{ p.id }}, {{ p.finished_at|d }}, {{ p.result }}</option>{% endfor %}</select>
+      <button class="btn sm">Re-submit for review</button>
+    </form>
+    <p class="muted">Dispute outcomes do not carry forward automatically; re-submitted disputes must be reviewed again for this scan.</p>
+  </details>
+  {% endif %}
+</section>
+
+<div class="grid-side">
+  <section class="panel flush">
+    <form method="get" class="filters">
+      <label>Status<select name="status"><option value="">All</option>{% for v in ('Fail', 'Pass', 'Info') %}<option {% if args.status == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label>Severity<select name="severity"><option value="">All</option>{% for v in ('High', 'Medium', 'Low') %}<option {% if args.severity == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label>Component<select name="component"><option value="">All</option>{% for v in comps %}<option {% if args.component == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label>Engine<select name="engine"><option value="">All</option>{% for v in engines %}<option {% if args.engine == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label>Search<input type="search" name="q" value="{{ args.q or '' }}" placeholder="Title, CVE or URL"></label>
+      <button class="btn sm">Apply</button>
+    </form>
+    <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>Finding</th><th>Component</th><th>Severity</th><th class="num">CVSS</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for f in items %}
+        <tr class="{% if f.status == 'Fail' %}is-fail{% endif %} {% if sel and sel.key == f.key %}selected{% endif %}">
+          <td><a class="title" href="{{ url_for('findings_page', scan_id=s.id, status=args.status or None, severity=args.severity or None, component=args.component or None, engine=args.engine or None, q=args.q or None, f=f.key) }}#detail">{{ f.title }}</a>
+            <div class="small muted">{{ f.category_title }}{% if f.url %}, {{ f.url|truncate(60) }}{% endif %}</div>
+            {% if f.auto_fail and f.raw_status == 'Fail' %}<span class="tag auto">automatic failure</span>{% endif %}
+            {% if f.exception_label %}<span class="tag exception">{{ f.exception_label }}</span>{% endif %}
+            {% if f.dispute and f.dispute.status == 'pending' %}<span class="tag potential">dispute pending</span>{% endif %}</td>
+          <td class="mono small nowrap">{{ f.component }}{% if f.port %}:{{ f.port }}{% endif %}</td>
+          <td>{% if f.status != 'Info' %}<span class="sev {{ f.severity }}">{{ f.severity }}</span>{% endif %}</td>
+          <td class="num">{% if f.status != 'Info' %}{{ '%.1f'|format(f.cvss_score) }}{% endif %}</td>
+          <td><span class="chip {{ f.status|lower }}">{{ f.status }}</span></td>
+        </tr>
+      {% else %}<tr><td colspan="5" class="muted">No findings match the filters.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <aside class="panel detail" id="detail">
+    {% if sel %}{% set f = sel %}
+      <h2>{{ f.title }}</h2>
+      <div class="meta"><span class="chip {{ f.status|lower }}">{{ f.status }}</span>{% if f.status != 'Info' %}<span class="sev {{ f.severity }}">{{ f.severity }} {{ '%.1f'|format(f.cvss_score) }}</span>{% endif %}{% if f.potential %}<span class="tag potential">version-based</span>{% endif %}</div>
+      <dl class="kv small">
+        <dt>Component</dt><dd class="mono">{{ f.component }}{% if f.port %}:{{ f.port }}/{{ f.protocol }}{% endif %}</dd>
+        <dt>Category</dt><dd>{{ f.category_title }}</dd>
+        <dt>Why</dt><dd>{{ f.status_reason }}</dd>
+        {% if f.cvss_vector %}<dt>Vector</dt><dd class="mono">{{ f.cvss_vector }}</dd>{% endif %}
+        <dt>Score source</dt><dd>{{ f.cvss_source }}</dd>
+        {% if f.cve %}<dt>CVE</dt><dd class="mono">{{ f.cve|join(', ') }}</dd>{% endif %}
+        <dt>PCI DSS</dt><dd>{% for p in f.pci %}{{ p.req }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+        <dt>Engine</dt><dd>{{ f.engine }} {% if f.rule_id %}<span class="mono">{{ f.rule_id }}</span>{% endif %}</dd>
+      </dl>
+      {% if f.instances %}<p class="section-label">Locations</p><ul class="plain small mono">{% for i in f.instances[:12] %}<li>{{ i.method }} {{ i.url }}{% if i.param %} ({{ i.param }}){% endif %}</li>{% endfor %}</ul>{% elif f.url %}<p class="section-label">Location</p><p class="mono small">{{ f.method }} {{ f.url }}{% if f.param %} ({{ f.param }}){% endif %}</p>{% endif %}
+      {% if f.attack %}<p class="section-label">Test payload</p><pre class="evidence">{{ f.attack }}</pre>{% endif %}
+      {% if f.evidence %}<p class="section-label">Evidence</p><pre class="evidence">{{ f.evidence }}</pre>{% endif %}
+      {% if f.description %}<p class="section-label">Description</p><p class="small">{{ f.description|truncate(900) }}</p>{% endif %}
+      <p class="section-label">Remediation</p><p class="small">{{ f.remediation }}</p>
+      {% if f.engine_solution %}<p class="small muted">{{ f.engine_solution|truncate(500) }}</p>{% endif %}
+      {% if f.references %}<p class="section-label">References</p><ul class="plain small">{% for u in f.references[:5] %}<li><a href="{{ u }}" rel="noreferrer noopener" target="_blank">{{ u|truncate(70) }}</a></li>{% endfor %}</ul>{% endif %}
+      {% if f.raw_ref %}<p class="small"><a href="{{ url_for('scan_raw', scan_id=s.id, name=f.raw_ref.split('#')[0]) }}">Raw engine output</a></p>{% endif %}
+
+      {% if f.dispute %}{% set d = f.dispute %}
+      <div class="dispute-box {{ d.status }}">
+        <p><b>{{ dispute_kinds[d.kind] }}</b> <span class="chip {{ d.status }}">{{ d.status }}</span></p>
+        <p class="small">{{ d.justification }}</p>
+        {% if d.proposed_score is not none %}<p class="small">Proposed CVSS: {{ d.proposed_score }}</p>{% endif %}
+        {% if d.evidence %}<ul class="plain small">{% for e in d.evidence %}<li>{% if e.stored %}<a href="{{ url_for('evidence', scan_id=s.id, name=e.stored) }}">{{ e.name }}</a> <span class="muted">{{ (e.size / 1024)|round(1) }} KB</span>{% else %}{{ e.text }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        <p class="muted small">Submitted by {{ d.submitted_by }}, {{ d.submitted_at|dt }}{% if d.carried_from %}, re-submitted from scan #{{ d.carried_from }}{% endif %}</p>
+        {% if d.reviewer %}<p class="small">Reviewed by {{ d.reviewer }} on {{ d.reviewed_at|dt }}: {{ d.review_notes }}</p>{% endif %}
+        {% if not locked %}
+          {% if d.status == 'pending' %}
+          <form method="post" action="{{ url_for('dispute_review', did=d.id) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+            <label class="f"><span>Reviewer</span><input type="text" name="reviewer" value="{{ actor }}" required></label>
+            <label class="f"><span>Conclusion</span><textarea name="notes" rows="2" required minlength="10" placeholder="What was verified and how"></textarea></label>
+            <div class="actions"><button class="btn sm primary" name="decision" value="accepted">Accept</button><button class="btn sm danger" name="decision" value="rejected">Reject</button></div>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('dispute_withdraw', did=d.id) }}" class="inline-form"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="linkbtn small">Withdraw dispute</button></form>
+        {% endif %}
+      </div>
+      {% elif f.status == 'Fail' and not locked %}
+      <details class="disclose" open>
+        <summary>Dispute this finding</summary>
+        <form method="post" action="{{ url_for('dispute_submit', scan_id=s.id) }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="fkey" value="{{ f.key }}">
+          <label class="f"><span>Type</span><select name="kind" data-cvss-toggle>{% for k, v in dispute_kinds.items() if k != 'inconclusive' %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+          <label class="f" data-cvss-field hidden><span>Proposed CVSS base score</span><input type="number" name="proposed_score" min="0" max="10" step="0.1"></label>
+          <label class="f"><span>Justification</span><textarea name="justification" required minlength="30" placeholder="What the evidence shows, when and how it was obtained"></textarea></label>
+          <label class="f"><span>System-generated evidence</span><input type="file" name="evidence" multiple><small>Screenshots, configuration files, package or patch lists.</small></label>
+          <label class="check"><input type="checkbox" name="apply_group" value="1"><span>Apply to every location of this rule on this component</span></label>
+          <label class="check"><input type="checkbox" name="attested" value="yes" required><span>I attest that this evidence is accurate and complete.</span></label>
+          <button class="btn primary sm">Submit for review</button>
+        </form>
+      </details>
+      {% endif %}
+    {% else %}
+      <div class="empty"><h3>Select a finding</h3><p>Details, evidence and the dispute workflow appear here.</p></div>
+    {% endif %}
+  </aside>
+</div>
+
+<section class="panel" id="notes">
+  <div class="panel-head"><h2>Special notes</h2><span class="muted small">{{ ev.pending_notes|length }} awaiting declaration</span></div>
+  {% for n in ev.notes %}
+  <div class="note-card">
+    <p><b>{{ n.title }}</b> <span class="mono small">{{ n.component }}{% if n.port %}:{{ n.port }}{% endif %}</span> {% if n.declaration %}<span class="chip pass">declared</span>{% else %}<span class="chip pending">declaration required</span>{% endif %}</p>
+    <p class="small">{{ n.detail }}</p>
+    <p class="muted small">{{ special_note_defs[n.type].description }}</p>
+    {% if n.declaration %}
+      <p class="small">{{ special_note_defs[n.type].options[n.declaration.option] }}. {{ n.declaration.statement }} <span class="muted">({{ n.declaration.declared_by }}, {{ n.declaration.declared_at|dt }})</span></p>
+    {% endif %}
+    {% if not locked %}
+    <details class="disclose small" {% if not n.declaration %}open{% endif %}><summary>{{ 'Change declaration' if n.declaration else 'Declare' }}</summary>
+      <form method="post" action="{{ url_for('declare', scan_id=s.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="nkey" value="{{ n.key }}">
+        <div class="choice">{% for k, v in special_note_defs[n.type].options.items() %}<label><input type="radio" name="option" value="{{ k }}" required {% if n.declaration and n.declaration.option == k %}checked{% endif %}><b>{{ v }}</b></label>{% endfor %}</div>
+        <label class="f"><span>Statement</span><textarea name="statement" rows="2" required minlength="15" placeholder="Business justification and controls, or the change made">{{ n.declaration.statement if n.declaration else '' }}</textarea></label>
+        <button class="btn sm">Record declaration</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% else %}<p class="muted">No special notes for this scan.</p>{% endfor %}
+</section>
+
+{% if ev.discovered %}
+<section class="panel">
+  <h2>Discovered components</h2>
+  <p class="small">{{ ev.discovered|length }} component{{ 's' if ev.discovered|length != 1 }} found during the scan must be added to the scope and scanned, or declared out of scope. <a href="{{ url_for('scope_page', sid=s.scope_id, tab='discovered') }}">Review discovered components</a></p>
+</section>
+{% endif %}
+{% endblock %}

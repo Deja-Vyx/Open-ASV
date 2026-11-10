@@ -1,0 +1,22 @@
+# =============================================================================
+# Target authorization policy
+# -----------------------------------------------------------------------------
+# OpenASV only scans targets permitted here AND confirmed by the operator on every
+# scan ("I own or am authorized to test these components").
+#
+# Default: private and loopback networks are allowed (internal staging,
+# pre-production, containers). Public Internet targets must be listed
+# explicitly — only add systems you own or have written permission to test.
+# Changes take effect immediately.
+# =============================================================================
+allow_private_networks: true     # RFC 1918, RFC 4193, loopback, link-local, CGNAT
+
+allow_hosts: []                  # e.g. ["shop.example.com", "*.example.com"]
+allow_cidrs: []                  # e.g. ["203.0.113.0/28"]
+
+deny_hosts: []                   # always refused, evaluated first
+deny_cidrs:
+  - 169.254.169.254/32           # cloud metadata endpoints
+  - fd00:ec2::254/128
+
+max_cidr_hosts: 256              # largest IP range accepted as one component

@@ -1,0 +1,56 @@
+# Scan profiles. "asv" mirrors the coverage expected of an ASV scan:
+# every TCP port, common UDP ports (privileged mode), TLS, web applications,
+# known vulnerabilities, default accounts and DNS.
+asv:
+  label: "ASV Standard"
+  summary: "All 65,535 TCP ports, common UDP ports, full TLS analysis, web application crawl and active testing, template-based CVE and misconfiguration checks, DNS checks, EOL and version analysis."
+  report_type: full
+  nmap:
+    tcp_ports: "1-65535"
+    udp_ports: "53,67,69,111,123,137,161,500,514,520,623,1194,1434,1900,4500,5060,5353"
+    version_intensity: 5
+    os_detection: true
+  testssl: ["-p", "-s", "-f", "-S", "-U"]
+  zap: {spider_minutes: 5, ajax_spider: false, active: true, active_minutes: 30}
+  nuclei: {severity: [low, medium, high, critical], tags: [], exclude_tags: [dos, intrusive, fuzz, bruteforce, osint], rate_limit: 100, concurrency: 25}
+  dns: true
+  web: true
+  eol: true
+  nvd: true
+  estimated: "30–90 min per component"
+
+quick:
+  label: "Quick"
+  summary: "Top 1,000 TCP ports, TLS protocols and certificate, passive web analysis and high-signal templates. Useful between ASV-standard scans."
+  report_type: full
+  nmap:
+    tcp_ports: "top1000"
+    udp_ports: ""
+    version_intensity: 2
+    os_detection: false
+  testssl: ["-p", "-s", "-S"]
+  zap: {spider_minutes: 2, ajax_spider: false, active: false, active_minutes: 0}
+  nuclei: {severity: [medium, high, critical], tags: [misconfig, exposure, default-login, tech, cve], exclude_tags: [dos, intrusive, fuzz, bruteforce, osint], rate_limit: 100, concurrency: 25}
+  dns: true
+  web: true
+  eol: true
+  nvd: false
+  estimated: "3–10 min per component"
+
+web:
+  label: "Web application"
+  summary: "Only the ports in the declared URLs: TLS, full web crawl and active testing, web templates."
+  report_type: full
+  nmap:
+    tcp_ports: "url"
+    udp_ports: ""
+    version_intensity: 5
+    os_detection: false
+  testssl: ["-p", "-s", "-f", "-S", "-U"]
+  zap: {spider_minutes: 5, ajax_spider: false, active: true, active_minutes: 30}
+  nuclei: {severity: [low, medium, high, critical], tags: [], exclude_tags: [dos, intrusive, fuzz, bruteforce, osint], rate_limit: 100, concurrency: 25}
+  dns: false
+  web: true
+  eol: true
+  nvd: true
+  estimated: "15–45 min per URL"

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}{{ sc.name }}{% endblock %}
+{% block body %}
+{% set in_scope = comps|selectattr('status', 'equalto', 'in_scope')|list %}
+{% set discovered = comps|selectattr('status', 'equalto', 'discovered')|list %}
+{% set oos = comps|selectattr('status', 'equalto', 'out_of_scope')|list %}
+<header class="pagehead">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('scopes') }}">Scopes</a></div>
+    <h1>{{ sc.name }}</h1>
+    <p class="sub">{{ sc.customer.company or 'Scan customer details not set' }}{% if sc.schedule != 'none' %}, scanned {{ sc.schedule }}{% endif %}</p>
+  </div>
+  <div class="actions">
+    {% if scans %}<a class="btn" href="{{ url_for('combine', sid=sc.id) }}">Combine scans</a>{% endif %}
+    <a class="btn primary" href="{{ url_for('scan_new', sid=sc.id) }}">{{ ui.icon('play') }}Run scan</a>
+  </div>
+</header>
+
+<section class="panel">
+  <div class="grid-2">
+    <div>
+      <h2>Three-month cadence</h2>
+      <p class="muted small">PCI DSS 11.3.2 requires a passing external scan at least once every three months.</p>
+      {{ ui.track(st, true) }}
+      <div class="track-labels">{% for w in st.windows %}<span>{{ w.start|d }}<br>– {{ w.end|d }}</span>{% endfor %}</div>
+    </div>
+    <dl class="kv">
+      <dt>Status</dt><dd><span class="chip {{ st.state }}">{{ st.label }}</span></dd>
+      <dt>Last passing scan</dt><dd>{{ st.last_pass|d if st.last_pass else '—' }}</dd>
+      <dt>Latest result</dt><dd>{% if st.latest %}<a href="{{ url_for('report_page', scan_id=st.latest.id) }}">{{ ui.seal(st.latest.result, 'sm') }}</a> scan #{{ st.latest.id }}{% else %}—{% endif %}</dd>
+      <dt>Next scheduled scan</dt><dd>{{ sc.next_run|dt if sc.next_run else 'Not scheduled' }}</dd>
+    </dl>
+  </div>
+</section>
+
+<nav class="tabs" aria-label="Scope sections">
+  <a href="?tab=components" {% if tab == 'components' %}aria-current="page"{% endif %}>Components<span class="count">{{ in_scope|length }}</span></a>
+  <a href="?tab=discovered" {% if tab == 'discovered' %}aria-current="page"{% endif %}>Discovered<span class="count">{{ discovered|length }}</span></a>
+  <a href="?tab=scans" {% if tab == 'scans' %}aria-current="page"{% endif %}>Scans<span class="count">{{ scans|length }}</span></a>
+  <a href="?tab=settings" {% if tab == 'settings' %}aria-current="page"{% endif %}>Customer & schedule</a>
+</nav>
+
+{% if tab == 'components' %}
+<div class="grid-side">
+  <section class="panel flush">
+    {% if in_scope or oos %}
+    <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>Component</th><th>Type</th><th>Status</th><th>Load balancer</th><th></th></tr></thead>
+      <tbody>
+      {% for c in in_scope + oos %}
+        <tr>
+          <td><span class="mono">{{ c.value }}</span>{% if c.label %}<div class="muted small">{{ c.label }}</div>{% endif %}
+            {% if c.status == 'out_of_scope' %}<div class="muted small">{{ c.reason }}</div>{% endif %}</td>
+          <td class="small">{{ {'url': 'Web application', 'host': 'Hostname', 'ip': 'IP address', 'cidr': 'IP range'}[c.kind] }}</td>
+          <td><span class="chip {{ c.status }}">{{ c.status.replace('_', ' ') }}</span></td>
+          <td>
+            <form method="post" action="{{ url_for('component_update', sid=sc.id, cid=c.id) }}" class="small">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="lb">
+              <label class="check"><input type="checkbox" name="load_balanced" value="1" {% if c.load_balanced %}checked{% endif %} data-autosubmit>Behind load balancer</label>
+              {% if c.load_balanced %}<label class="check"><input type="checkbox" name="lb_synchronized" value="1" {% if c.lb_synchronized %}checked{% endif %} data-autosubmit>Backends synchronised</label>{% endif %}
+            </form>
+          </td>
+          <td class="right">
+            <form method="post" action="{{ url_for('component_update', sid=sc.id, cid=c.id) }}">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              {% if c.status == 'in_scope' %}<input type="hidden" name="status" value="removed"><button class="btn sm quiet" title="Remove from scope">Remove</button>
+              {% else %}<input type="hidden" name="status" value="in_scope"><button class="btn sm">Bring into scope</button>{% endif %}
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No components</h3><p>Add the external IP addresses, hostnames and web application URLs of this environment.</p></div>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <h2>Add components</h2>
+    <form method="post" action="{{ url_for('components_add', sid=sc.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <label class="f"><span>Components</span><textarea name="components" class="code" rows="5" placeholder="https://pay.example.com/checkout&#10;198.51.100.0/29"></textarea>
+        <small>Include every FQDN, virtual host and application URL that cannot be reached by crawling from the home page.</small></label>
+      <label class="f"><span>Label <em class="muted">(optional)</em></span><input type="text" name="label" maxlength="80" placeholder="Payment API"></label>
+      <button class="btn primary">Add to scope</button>
+    </form>
+  </section>
+</div>
+
+{% elif tab == 'discovered' %}
+<section class="panel flush">
+  <div class="panel-head"><h2>Discovered components</h2></div>
+  <p class="muted small">{% if discovered %}Found during scans through DNS, MX and NS records, certificates, redirects and crawling. Each must be scanned or declared out of scope before a scan can pass.{% else %}Nothing is waiting for a decision.{% endif %}</p>
+  {% if discovered %}
+  <div class="table-wrap">
+  <table class="t">
+    <thead><tr><th>Component</th><th>How it was found</th><th>Decision</th></tr></thead>
+    <tbody>
+    {% for c in discovered %}
+      <tr>
+        <td class="mono">{{ c.value }}</td>
+        <td class="small">{{ c.reason }}<div class="muted">{{ c.discovered_by }}</div></td>
+        <td>
+          <form method="post" action="{{ url_for('component_update', sid=sc.id, cid=c.id) }}" class="actions">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="tab" value="discovered">
+            <button class="btn sm" name="status" value="in_scope">Add to scope</button>
+            <input type="text" name="reason" placeholder="Why it is segmented from the CDE" aria-label="Out-of-scope reason">
+            <button class="btn sm" name="status" value="out_of_scope">Declare out of scope</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+{% elif tab == 'scans' %}
+<section class="panel flush">
+  {% if scans %}
+  <div class="table-wrap">
+  <table class="t">
+    <thead><tr><th>Scan</th><th>Type</th><th>Profile</th><th>Completed</th><th>State</th><th>Result</th><th>Report</th></tr></thead>
+    <tbody>
+    {% for s in scans %}
+      <tr>
+        <td><a class="title" href="{{ url_for('scan_page', scan_id=s.id) }}">#{{ s.id }}</a> <span class="muted small">{{ s.label }}</span></td>
+        <td class="small">{{ {'full': 'Full', 'rescan': 'Rescan', 'imported': 'Imported'}[s.report_type] }}</td>
+        <td class="small">{{ s.profile }}</td>
+        <td class="small nowrap">{{ s.finished_at|dt }}</td>
+        <td><span class="chip {{ s.status }}">{{ s.status }}</span></td>
+        <td>{% if s.result %}{{ ui.seal(s.result, 'sm') }}{% endif %}{% if s.finalized_at %} <span class="chip plain">final</span>{% endif %}</td>
+        <td>{% if s.status == 'completed' %}<a href="{{ url_for('report_page', scan_id=s.id) }}">Report</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<div class="empty"><h3>No scans yet</h3><p><a class="btn primary" href="{{ url_for('scan_new', sid=sc.id) }}">Run the first scan</a></p></div>{% endif %}
+</section>
+
+{% else %}
+<form method="post" action="{{ url_for('scope_settings', sid=sc.id) }}">
+<input type="hidden" name="csrf" value="{{ csrf_token() }}">
+<div class="grid-2">
+  <section class="panel">
+    <h2>Scan customer</h2>
+    <p class="muted small">Shown in section A.1 of every report.</p>
+    <label class="f"><span>Scope name</span><input type="text" name="name" value="{{ sc.name }}" required></label>
+    <div class="row">
+      <label class="f"><span>Company</span><input type="text" name="company" value="{{ sc.customer.company }}"></label>
+      <label class="f"><span>Website</span><input type="text" name="website" value="{{ sc.customer.website }}"></label>
+      <label class="f"><span>Contact name</span><input type="text" name="contact" value="{{ sc.customer.contact }}"></label>
+      <label class="f"><span>Job title</span><input type="text" name="title" value="{{ sc.customer.title }}"></label>
+      <label class="f"><span>Email</span><input type="email" name="email" value="{{ sc.customer.email }}"></label>
+      <label class="f"><span>Telephone</span><input type="text" name="phone" value="{{ sc.customer.phone }}"></label>
+    </div>
+    <label class="f"><span>Business address</span><input type="text" name="address" value="{{ sc.customer.address }}"></label>
+    <div class="row">
+      <label class="f"><span>City</span><input type="text" name="city" value="{{ sc.customer.city }}"></label>
+      <label class="f"><span>State / province</span><input type="text" name="state" value="{{ sc.customer.state }}"></label>
+      <label class="f"><span>Postal code</span><input type="text" name="postal" value="{{ sc.customer.postal }}"></label>
+      <label class="f"><span>Country</span><input type="text" name="country" value="{{ sc.customer.country }}"></label>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Recurring scans</h2>
+    <fieldset class="f"><legend>Schedule</legend>
+      <div class="choice">
+        {% for k, days in schedules.items() %}
+        <label><input type="radio" name="schedule" value="{{ k }}" {% if sc.schedule == k %}checked{% endif %}>
+          <b>{{ {'none': 'Manual', 'monthly': 'Every 30 days', 'quarterly': 'Every 90 days'}[k] }}</b>
+          <small>{{ {'none': 'Run scans on demand.', 'monthly': 'Leaves time to remediate and rescan inside each three-month window.', 'quarterly': 'Minimum cadence for Requirement 11.3.2.'}[k] }}</small></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <label class="f"><span>Profile</span><select name="schedule_profile">{% for k, p in profiles.items() %}<option value="{{ k }}" {% if sc.schedule_profile == k %}selected{% endif %}>{{ p.label }}</option>{% endfor %}</select></label>
+    <label class="check attest"><input type="checkbox" name="schedule_authorized" value="yes"><span>I am authorized to have every component of this scope scanned automatically on this schedule.</span></label>
+    <label class="f"><span>Notes</span><textarea name="notes" rows="3">{{ sc.notes }}</textarea></label>
+    <button class="btn primary">Save settings</button>
+  </section>
+</div>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openasv"
+dynamic = ["version"]
+description = "Open-source external vulnerability scanning with ASV-style PCI DSS compliance reporting"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [{name = "Deja-Vyx"}]
+requires-python = ">=3.10"
+keywords = ["pci-dss", "asv", "vulnerability-scanner", "compliance", "owasp-zap", "nmap", "nuclei", "testssl"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security",
+]
+dependencies = [
+  "flask>=3.0,<4",
+  "pyyaml>=6.0",
+  "requests>=2.31",
+  "dnspython>=2.6",
+  "waitress>=3.0",
+]
+
+[project.optional-dependencies]
+pdf = ["weasyprint>=62"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+openasv = "openasv.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Deja-Vyx/openasv"
+Issues = "https://github.com/Deja-Vyx/openasv/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "openasv.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["openasv*"]
+
+[tool.setuptools.package-data]
+openasv = ["data/*.json", "i18n/*.json", "web/templates/*.html", "web/static/*", "web/static/fonts/*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B"]
+ignore = ["E501", "E731", "B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

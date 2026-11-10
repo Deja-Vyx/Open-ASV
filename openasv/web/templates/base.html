@@ -1,0 +1,71 @@
+{% import "_macros.html" as ui %}
+<!doctype html>
+<html lang="{{ lang }}"{% if printing %} data-theme="light"{% elif theme != 'auto' %} data-theme="{{ theme }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}OpenASV{% endblock %} · OpenASV</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+{% if pdf %}<style>{{ inline_css|safe }}</style>{% else %}<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">{% endif %}
+</head>
+<body class="{% if pdf %}pdf{% endif %}">
+{% if printing %}
+<main class="main report">{% block print_body %}{{ self.body() }}{% endblock %}</main>
+{% else %}
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="{{ url_for('dashboard') }}" aria-label="OpenASV home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <path d="M16 4a12 12 0 0 1 10.4 6"/><path d="M28 16a12 12 0 0 1-6 10.4"/><path d="M16 28a12 12 0 0 1-10.4-6"/></g>
+        <path d="M4 16a12 12 0 0 1 6-10.4" fill="none" stroke="var(--signal)" stroke-width="3" stroke-linecap="round"/>
+        <path d="m11.5 16.3 3.2 3.2 6-6.4" fill="none" stroke="var(--signal)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand-name" translate="no">Open<i>ASV</i></span>
+    </a>
+    {% set pending_count = pending_disputes_count() %}
+    <nav class="nav" aria-label="Main">
+      <a href="{{ url_for('dashboard') }}" {% if nav == 'dashboard' %}aria-current="page"{% endif %}>{{ ui.icon('overview') }}<span>Overview</span></a>
+      <a href="{{ url_for('scopes') }}" {% if nav.startswith('scope') or nav in ('components_add', 'scan_new', 'combine') %}aria-current="page"{% endif %}>{{ ui.icon('scopes') }}<span>Scopes</span></a>
+      <a href="{{ url_for('scans') }}" {% if nav in ('scans', 'scan_page', 'report_page', 'findings_page', 'finalize') %}aria-current="page"{% endif %}>{{ ui.icon('scans') }}<span>Scans</span></a>
+      <a href="{{ url_for('disputes_page') }}" {% if nav == 'disputes_page' %}aria-current="page"{% endif %}>{{ ui.icon('disputes') }}<span>Disputes</span>{% if pending_count %}<span class="count">{{ pending_count }}</span>{% endif %}</a>
+      <a href="{{ url_for('import_page') }}" {% if nav == 'import_page' %}aria-current="page"{% endif %}>{{ ui.icon('import') }}<span>Import</span></a>
+      <a href="{{ url_for('settings_page') }}" {% if nav == 'settings_page' %}aria-current="page"{% endif %}>{{ ui.icon('settings') }}<span>Settings</span></a>
+    </nav>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Language">
+        {% for code in languages %}<a href="{{ url_for('set_pref', kind='lang', value=code) }}" hreflang="{{ code }}" {% if lang == code %}aria-current="true"{% endif %}>{{ code|upper }}</a>{% endfor %}
+      </div>
+      <div class="seg" role="group" aria-label="Colour theme">
+        <a href="{{ url_for('set_pref', kind='theme', value='light') }}" title="Light" {% if theme == 'light' %}aria-current="true"{% endif %}>{{ ui.icon('sun') }}<span class="sr">Light</span></a>
+        <a href="{{ url_for('set_pref', kind='theme', value='dark') }}" title="Dark" {% if theme == 'dark' %}aria-current="true"{% endif %}>{{ ui.icon('moon') }}<span class="sr">Dark</span></a>
+        <a href="{{ url_for('set_pref', kind='theme', value='auto') }}" title="Match the system setting" {% if theme == 'auto' %}aria-current="true"{% endif %}>{{ ui.icon('auto') }}<span class="sr">Match the system setting</span></a>
+      </div>
+    </div>
+  </div>
+</header>
+<main class="main" id="main">
+  {% with msgs = get_flashed_messages(with_categories=true) %}{% for cat, m in msgs %}<div class="flash {{ cat }}" role="alert">{{ m }}</div>{% endfor %}{% endwith %}
+  {% block body %}{% endblock %}
+</main>
+<footer class="sitefoot">
+  <div class="sitefoot-in">
+    <p>{{ disclaimer }}</p>
+    <div class="meta">
+      {% if auth_enabled %}
+        <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><span>Signed in as <b>{{ actor }}</b></span> <button class="btn sm">Sign out</button></form>
+      {% else %}
+        <form method="post" action="{{ url_for('set_operator') }}" title="Name recorded in the audit trail">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <label for="opname">Operator</label>
+          <input id="opname" type="text" name="name" value="{{ actor }}" maxlength="80">
+          <button class="btn sm">Set</button>
+        </form>
+      {% endif %}
+      <span>OpenASV {{ version }} · <a href="https://github.com/Deja-Vyx/openasv" rel="noreferrer">GitHub</a></span>
+    </div>
+  </div>
+</footer>
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+{% endif %}
+</body>
+</html>

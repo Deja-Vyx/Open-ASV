@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Run scan{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div><div class="crumbs"><a href="{{ url_for('scope_page', sid=sc.id) }}">{{ sc.name }}</a></div><h1>Run a scan</h1></div>
+</header>
+<form method="post" action="{{ url_for('scan_launch', sid=sc.id) }}">
+<input type="hidden" name="csrf" value="{{ csrf_token() }}">
+<div class="grid-side">
+  <div>
+    <section class="panel">
+      <h2>Profile</h2>
+      <div class="choice">
+        {% for k, p in profiles.items() %}
+        <label><input type="radio" name="profile" value="{{ k }}" {% if k == 'asv' %}checked{% endif %}>
+          <b>{{ p.label }}</b><small>{{ p.summary }}</small><small>Typical duration: {{ p.estimated }}</small></label>
+        {% endfor %}
+      </div>
+    </section>
+    <section class="panel flush">
+      <div class="panel-head"><h2>Components</h2><span class="muted small">All in-scope components are scanned unless you select a subset</span></div>
+      {% if checks %}
+      <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th><span class="sr">Select</span></th><th>Component</th><th>Target policy</th></tr></thead>
+        <tbody>
+        {% for c, ok, why in checks %}
+          <tr>
+            <td><input type="checkbox" name="only" value="{{ c.value }}" aria-label="Scan only selected" {% if not ok %}disabled{% endif %}></td>
+            <td class="mono">{{ c.value }}</td>
+            <td class="small">{% if ok %}<span class="chip pass">permitted</span> <span class="muted">{{ why }}</span>{% else %}<span class="chip fail">blocked</span> {{ why }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}<div class="empty"><p>This scope has no in-scope components. <a href="{{ url_for('scope_page', sid=sc.id) }}">Add components</a>.</p></div>{% endif %}
+    </section>
+  </div>
+  <section class="panel">
+    <h2>Authorization</h2>
+    <label class="f"><span>Label <em class="muted">(optional)</em></span><input type="text" name="label" maxlength="80" placeholder="Q4 external scan"></label>
+    <div class="attest">
+      <label class="check"><input type="checkbox" name="authorized" value="yes" required><span>{{ authorization }}</span></label>
+    </div>
+    <p class="muted small">Ask the network team to set intrusion prevention and rate-based WAF rules to log, not block, the scanner during the scan window. Blocking makes the scan inconclusive.</p>
+    <button class="btn primary" {% if not checks %}disabled{% endif %}>Start scan</button>
+  </section>
+</div>
+</form>
+{% endblock %}

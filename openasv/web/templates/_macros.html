@@ -1,0 +1,25 @@
+{% macro icon(name) -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == 'overview' %}<path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z"/>
+{%- elif name == 'scopes' %}<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+{%- elif name == 'scans' %}<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="17.5" cy="16.5" r="3"/><path d="m20 19 2 2"/>
+{%- elif name == 'disputes' %}<path d="M5 4h10l4 4v12H5z"/><path d="M14 4v5h5M8.5 13.5l2.2 2.2 4.3-4.4"/>
+{%- elif name == 'import' %}<path d="M12 3v12M7 10l5 5 5-5M4 19h16"/>
+{%- elif name == 'settings' %}<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M4.2 5.6l2.1 2.1M17.7 16.3l2.1 2.1M2.5 12h3M18.5 12h3M4.2 18.4l2.1-2.1M17.7 7.7l2.1-2.1"/>
+{%- elif name == 'play' %}<path d="M7 5v14l11-7z"/>
+{%- elif name == 'download' %}<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>
+{%- elif name == 'print' %}<path d="M7 9V4h10v5M7 17H4v-7h16v7h-3M7 14h10v6H7z"/>
+{%- elif name == 'sun' %}<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>
+{%- elif name == 'moon' %}<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+{%- elif name == 'auto' %}<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/>
+{%- endif %}</svg>
+{%- endmacro %}
+{% macro seal(result, size='') -%}
+{%- set cls = {'PASS': 'pass', 'FAIL': 'fail'}.get(result or '', 'hold') -%}
+<span class="seal {{ cls }} {{ size }}" role="status" aria-label="Compliance result {{ result or 'pending' }}">{{ result or 'PENDING' }}</span>
+{%- endmacro %}
+{% macro track(st, large=false) -%}
+<span class="track{% if large %} lg{% endif %}" role="img" aria-label="{{ st.passes }} of the last 4 three-month windows have a passing scan">
+{%- for w in st.windows %}<i class="{% if w.pass_scan %}ok{% endif %}" title="{{ w.start|d }} – {{ w.end|d }}: {% if w.pass_scan %}passing scan #{{ w.pass_scan }}{% else %}no passing scan{% endif %}"></i>{% endfor -%}
+</span>
+{%- endmacro %}

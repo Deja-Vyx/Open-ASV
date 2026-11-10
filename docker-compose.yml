@@ -1,0 +1,58 @@
+# OpenASV
+#   docker compose up -d                      -> http://localhost:9100
+#   docker compose --profile demo up -d       -> adds the deliberately vulnerable demo target (https://demo-target:8443/)
+name: openasv
+
+services:
+  openasv:
+    build: .
+    image: ghcr.io/deja-vyx/openasv:latest
+    container_name: openasv
+    ports:
+      - "127.0.0.1:${OPENASV_PORT:-9100}:9100"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OPENASV_ZAP_API: http://zap:8080
+      OPENASV_ZAP_API_KEY: ${ZAP_API_KEY:-change-me}
+      OPENASV_LOCALHOST_ALIAS: host.docker.internal
+      OPENASV_EXTRA_CA: /certs/ca.crt,/demo-ca/ca.crt
+    volumes:
+      - openasv-data:/data
+      - ./config:/app/config:ro
+      - ./certs:/certs:ro
+      - demo-ca:/demo-ca:ro
+    cap_add: [NET_RAW]                   # SYN/UDP scanning and OS fingerprinting
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: [zap]
+    restart: unless-stopped
+
+  zap:
+    image: zaproxy/zap-stable:2.16.1
+    container_name: openasv-zap
+    command: >-
+      zap.sh -daemon -host 0.0.0.0 -port 8080
+      -config api.key=${ZAP_API_KEY:-change-me}
+      -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true
+      -config connection.timeoutInSecs=30
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    # The ZAP API is reachable only from the openasv container (no published port).
+
+  demo-target:
+    profiles: ["demo"]
+    build: ./examples/demo-target
+    container_name: openasv-demo-target
+    hostname: demo-target
+    environment:
+      DEMO_MODE: ${DEMO_MODE:-weak}       # weak | strong
+    volumes:
+      - demo-ca:/demo-ca
+    restart: unless-stopped
+
+volumes:
+  openasv-data:
+  demo-ca:

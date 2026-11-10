@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Scan #{{ s.id }}{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div>
+    <div class="crumbs"><a href="{{ url_for('scope_page', sid=sc.id) }}">{{ sc.name }}</a></div>
+    <h1>Scan #{{ s.id }}{% if s.label %} <span class="muted">{{ s.label }}</span>{% endif %}</h1>
+    <p class="sub">{{ {'full': 'Full scan', 'rescan': 'Rescan of failing components', 'imported': 'Imported results'}[s.report_type] }} with the {{ s.profile }} profile, started {{ s.created_at|dt }} by {{ s.authorized_by }}</p>
+  </div>
+  <div class="actions">
+    <span class="chip {{ s.status }}" id="scan-status">{{ s.status }}</span>
+    {% if s.status in ('queued', 'running') %}
+    <form method="post" action="{{ url_for('scan_cancel', scan_id=s.id) }}" id="cancel-form"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn danger sm">Cancel scan</button></form>
+    {% endif %}
+  </div>
+</header>
+
+{% if s.error %}<div class="flash error">{{ s.error }}</div>{% endif %}
+
+{% if ev %}
+<section class="panel">
+  <div class="posture">
+    {{ ui.seal(ev.overall, 'lg') }}
+    <div class="lede">
+      {% if ev.overall == 'PASS' %}<p>All {{ ev.counts.components }} component{{ 's' if ev.counts.components != 1 }} meet the ASV scoring rules, every special note is declared and no discovered component is waiting for a decision.</p>
+      {% else %}<p>This scan does not pass yet:</p><ul class="bullets">{% for r in ev.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <a class="btn primary" href="{{ url_for('findings_page', scan_id=s.id) }}">Review findings</a>
+    <a class="btn" href="{{ url_for('report_page', scan_id=s.id) }}">Open report</a>
+    {% if ev.overall == 'FAIL' and ev.failing and not s.finalized_at %}
+    <form method="post" action="{{ url_for('scan_rescan', scan_id=s.id) }}" class="inline-form" data-confirm="Rescan only the failing components? You confirm you are authorized to scan them.">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="authorized" value="yes">
+      <button class="btn">Rescan failing components</button></form>
+    {% endif %}
+    {% if not s.finalized_at %}<a class="btn" href="{{ url_for('finalize', scan_id=s.id) }}">Finalise report</a>{% endif %}
+  </div>
+  {% if ev.inconclusive and not ev.inconclusive_resolved and not s.finalized_at %}
+  <details class="disclose" id="inconclusive">
+    <summary>Dispute the inconclusive status</summary>
+    <form method="post" action="{{ url_for('dispute_submit', scan_id=s.id) }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="fkey" value="__scan__"><input type="hidden" name="kind" value="inconclusive">
+      <label class="f"><span>Evidence that the scan was not actively blocked</span><textarea name="justification" required minlength="30" placeholder="e.g. firewall and WAF logs for the scan window show no blocks against the scanner address"></textarea></label>
+      <label class="f"><span>Attach evidence</span><input type="file" name="evidence" multiple></label>
+      <label class="check"><input type="checkbox" name="attested" value="yes" required><span>I attest that this evidence is accurate and complete.</span></label>
+      <button class="btn">Submit for review</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if s.report_type == 'imported' %}
+<section class="panel"><h2>Imported results</h2><p class="small">{{ s.authorization }}. {% for x in s.meta.limitations or [] %}{{ x }} {% endfor %}</p></section>
+{% else %}
+<div class="grid-2">
+<section class="panel" id="scan-live" data-api="{{ url_for('scan_status', scan_id=s.id) }}" data-done="{{ 1 if s.status in ('completed', 'failed', 'cancelled') else 0 }}">
+  <h2>Progress</h2>
+  <ol class="stages" id="stages">
+    {% for st in s.stages %}
+    <li class="stage {{ st.status }}"><span class="dot"></span>
+      <span class="what"><b>{{ STAGE_LABELS.get(st.name, st.name) }}</b><span class="mono">{{ st.target }}</span></span>
+      <span class="small muted">{{ st.status }}</span>
+      <progress max="100" value="{{ st.progress }}"></progress>
+      <span class="msg">{{ st.message }}</span></li>
+    {% endfor %}
+    {% for st in upcoming %}
+    <li class="stage pending"><span class="dot"></span><span class="what"><b>{{ st.label }}</b></span><span class="small muted">{{ 'queued' if loop.first and not s.stages else 'pending' }}</span></li>
+    {% endfor %}
+  </ol>
+</section>
+<section class="panel">
+  <h2>Scanner log</h2>
+  <pre class="log" id="log" tabindex="0">Loading…</pre>
+</section>
+</div>
+{% endif %}
+
+<section class="panel">
+  <h2>Components in this scan</h2>
+  <ul class="plain">{% for c in s.components %}<li class="mono">{{ c.value }}{% if c.load_balanced %} <span class="muted small">load balanced</span>{% endif %}</li>{% endfor %}</ul>
+  <p class="muted small">{{ s.authorization }}</p>
+</section>
+{% endblock %}

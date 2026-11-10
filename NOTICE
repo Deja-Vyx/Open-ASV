@@ -1,0 +1,14 @@
+OpenASV
+Copyright 2026 Deja-Vyx and OpenASV contributors
+
+This product bundles:
+  - IBM Plex Sans and IBM Plex Mono fonts, Copyright 2018 IBM Corp., licensed under the SIL Open Font License 1.1
+    (openasv/web/static/fonts/OFL.txt).
+  - End-of-life data derived from endoflife.date (https://endoflife.date), MIT License.
+
+OpenASV invokes, but does not include, the following tools, each under its own license:
+  Nmap (Nmap Public Source License), testssl.sh (GPLv2), OWASP ZAP (Apache-2.0), Nuclei (MIT),
+  Nuclei templates (MIT). Container images built from the provided Dockerfile download them at build time.
+
+"PCI DSS" and "PCI Security Standards Council" are trademarks of PCI Security Standards Council, LLC.
+OpenASV is not affiliated with, endorsed by, or an Approved Scanning Vendor of the PCI Security Standards Council.

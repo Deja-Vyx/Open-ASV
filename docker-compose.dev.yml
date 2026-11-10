@@ -1,0 +1,29 @@
+# Engines for running OpenASV from an IDE or a local virtualenv:
+#   docker compose -f docker-compose.dev.yml up -d        -> OWASP ZAP API on http://127.0.0.1:8090
+#   python -m openasv                                     -> http://127.0.0.1:9100
+# Add --profile demo to also start the deliberately vulnerable demo target on https://127.0.0.1:8443/
+name: openasv-dev
+
+services:
+  zap:
+    image: zaproxy/zap-stable:2.16.1
+    command: >-
+      zap.sh -daemon -host 0.0.0.0 -port 8080
+      -config api.key=${ZAP_API_KEY:-change-me}
+      -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true
+      -config connection.timeoutInSecs=30
+    ports:
+      - "127.0.0.1:8090:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  demo-target:
+    profiles: ["demo"]
+    build: ./examples/demo-target
+    environment:
+      DEMO_MODE: ${DEMO_MODE:-weak}
+    ports:
+      - "127.0.0.1:8443:8443"
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
