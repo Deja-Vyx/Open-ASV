@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Scans{% endblock %}
+{% block body %}
+<header class="pagehead"><div><h1>Scans</h1><p class="sub">Every scan and import across all scopes.</p></div></header>
+<section class="panel flush">
+  {% if rows %}
+  <div class="table-wrap">
+  <table class="t">
+    <thead><tr><th>Scan</th><th>Scope</th><th>Type</th><th>Profile</th><th>Started</th><th>Completed</th><th>State</th><th>Result</th></tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr>
+        <td><a class="title" href="{{ url_for('scan_page', scan_id=s.id) }}">#{{ s.id }}</a> <span class="muted small">{{ s.label }}</span></td>
+        <td><a href="{{ url_for('scope_page', sid=s.scope_id) }}">{{ s.scope_name }}</a></td>
+        <td class="small">{{ {'full': 'Full', 'rescan': 'Rescan', 'imported': 'Imported'}[s.report_type] }}</td>
+        <td class="small">{{ s.profile }}</td>
+        <td class="small nowrap">{{ s.created_at|dt }}</td>
+        <td class="small nowrap">{{ s.finished_at|dt }}</td>
+        <td><span class="chip {{ s.status }}">{{ s.status }}</span></td>
+        <td>{% if s.result %}<a href="{{ url_for('report_page', scan_id=s.id) }}">{{ ui.seal(s.result, 'sm') }}</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<div class="empty"><h3>No scans yet</h3><p>Open a scope and choose Run scan.</p></div>{% endif %}
+</section>
+{% endblock %}

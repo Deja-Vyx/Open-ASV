@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<NessusClientData_v2>
+<Policy><policyName>PCI Quarterly External Scan</policyName></Policy>
+<Report name="store-external" xmlns:cm="http://www.nessus.org/cm">
+<ReportHost name="203.0.113.10"><HostProperties>
+<tag name="HOST_END">Mon Nov  9 10:12:44 2026</tag><tag name="host-ip">203.0.113.10</tag><tag name="host-fqdn">shop.example.com</tag>
+<tag name="operating-system">Linux Kernel 4.15</tag></HostProperties>
+<ReportItem port="443" svc_name="www" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner" pluginFamily="Port scanners">
+<description>This plugin is a SYN 'half-open' port scanner.</description><risk_factor>None</risk_factor><plugin_output>Port 443/tcp was found to be open</plugin_output></ReportItem>
+<ReportItem port="22" svc_name="ssh" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner" pluginFamily="Port scanners">
+<description>SYN scan</description><plugin_output>Port 22/tcp was found to be open</plugin_output></ReportItem>
+<ReportItem port="3306" svc_name="mysql" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner" pluginFamily="Port scanners">
+<plugin_output>Port 3306/tcp was found to be open</plugin_output></ReportItem>
+<ReportItem port="443" svc_name="www" protocol="tcp" severity="2" pluginID="104743" pluginName="TLS Version 1.0 Protocol Detection" pluginFamily="Service detection">
+<description>The remote service accepts connections encrypted using TLS 1.0.</description><solution>Enable support for TLS 1.2 and 1.3, and disable support for TLS 1.0.</solution>
+<risk_factor>Medium</risk_factor><cvss3_base_score>6.5</cvss3_base_score><cvss3_vector>CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N</cvss3_vector>
+<plugin_output>TLSv1 is enabled and the server supports at least one cipher.</plugin_output></ReportItem>
+<ReportItem port="443" svc_name="www" protocol="tcp" severity="3" pluginID="142591" pluginName="PHP &lt; 7.3.24 Multiple Vulnerabilities" pluginFamily="CGI abuses">
+<description>The version of PHP running on the remote web server is prior to 7.3.24.</description><solution>Upgrade to PHP version 7.3.24 or later.</solution>
+<risk_factor>High</risk_factor><cvss3_base_score>7.5</cvss3_base_score><cvss3_vector>CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N</cvss3_vector>
+<cve>CVE-2020-7070</cve><cve>CVE-2020-7069</cve><see_also>https://www.php.net/ChangeLog-7.php#7.3.24</see_also>
+<plugin_output>URL: https://shop.example.com/ Installed version: 7.2.24</plugin_output></ReportItem>
+<ReportItem port="443" svc_name="www" protocol="tcp" severity="1" pluginID="10107" pluginName="HTTP Server Type and Version" pluginFamily="Web Servers">
+<description>A web server is running on the remote host.</description><risk_factor>Low</risk_factor><cvss3_base_score>3.1</cvss3_base_score></ReportItem>
+<ReportItem port="443" svc_name="www" protocol="tcp" severity="2" pluginID="44136" pluginName="CGI Generic Cookie Injection Scripting" pluginFamily="CGI abuses : XSS">
+<description>reflected XSS</description><risk_factor>Medium</risk_factor><cvss_base_score>4.3</cvss_base_score><cvss_vector>CVSS2#AV:N/AC:M/Au:N/C:N/I:P/A:N</cvss_vector>
+<cwe>79</cwe><xref>CWE:79</xref></ReportItem>
+</ReportHost>
+</Report>
+</NessusClientData_v2>

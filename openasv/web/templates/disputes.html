@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Disputes{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div><h1>Disputes</h1><p class="sub">False positives, compensating controls, exceptions and CVSS disputes submitted by scan customers. Each must be reviewed for the scan it belongs to.</p></div>
+</header>
+<nav class="tabs" aria-label="Dispute status">
+  {% for k, label in (('pending', 'Awaiting review'), ('accepted', 'Accepted'), ('rejected', 'Rejected'), ('all', 'All')) %}
+  <a href="?status={{ k }}" {% if status == k %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+<section class="panel flush">
+  {% if rows %}
+  <div class="table-wrap">
+  <table class="t">
+    <thead><tr><th>Finding</th><th>Scope / scan</th><th>Type</th><th>Submitted</th><th>Evidence</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for d in rows %}
+      <tr>
+        <td>{% if d.finding %}<span class="title">{{ d.finding.title }}</span><div class="mono small muted">{{ d.finding.component }}{% if d.finding.port %}:{{ d.finding.port }}{% endif %}</div>{% else %}<span class="title">Entire scan</span>{% endif %}
+          <div class="small">{{ d.justification|truncate(160) }}</div></td>
+        <td class="small">{{ d.scope_name }}<br><a href="{{ url_for('scan_page', scan_id=d.scan_id) }}">scan #{{ d.scan_id }}</a></td>
+        <td class="small">{{ dispute_kinds[d.kind] }}</td>
+        <td class="small nowrap">{{ d.submitted_by }}<br>{{ d.submitted_at|dt }}</td>
+        <td class="small">{{ d.evidence|length }} item{{ 's' if d.evidence|length != 1 }}</td>
+        <td><span class="chip {{ d.status }}">{{ d.status }}</span>{% if d.reviewer %}<div class="small muted">{{ d.reviewer }}</div>{% endif %}</td>
+        <td>{% if d.finding %}<a class="btn sm" href="{{ url_for('findings_page', scan_id=d.scan_id, f=d.fkey) }}#detail">{{ 'Review' if d.status == 'pending' else 'Open' }}</a>{% else %}<a class="btn sm" href="{{ url_for('scan_page', scan_id=d.scan_id) }}">Open</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<div class="empty"><h3>Nothing here</h3><p>{{ 'No disputes are waiting for review.' if status == 'pending' else 'No disputes match this filter.' }}</p></div>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div><h1>Settings</h1><p class="sub">Engines, policies and the audit trail. Configuration lives in <span class="mono">config/</span> and environment variables.</p></div>
+</header>
+<div class="grid-2">
+  <section class="panel">
+    <h2>Engines</h2>
+    <dl class="kv small">{% for k, v in versions.items() %}<dt>{{ k }}</dt><dd class="mono">{{ v }}</dd>{% endfor %}
+      <dt>Privileged mode</dt><dd>{{ 'On: TCP SYN, UDP and OS detection' if s.privileged else 'Off: TCP connect only, UDP not scanned' }}</dd>
+      <dt>NVD correlation</dt><dd>{{ 'On' if s.nvd_enabled else 'Off' }}{% if s.nvd_api_key %}, API key configured{% else %}, no API key (rate-limited){% endif %}</dd>
+      <dt>Nuclei out-of-band</dt><dd>{{ 'Enabled' if s.nuclei_interactsh else 'Disabled' }}</dd>
+      <dt>Scheduler</dt><dd>{{ 'Running' if s.scheduler else 'Disabled' }}</dd>
+      <dt>Webhook</dt><dd>{{ 'Configured' if s.webhook_url else 'Not configured' }}</dd>
+    </dl>
+  </section>
+  <section class="panel">
+    <h2>Target policy</h2>
+    <p class="small">Edit <span class="mono">config/target-policy.yaml</span>; changes apply immediately.</p>
+    <dl class="kv small">
+      <dt>Private networks</dt><dd>{{ 'Allowed' if target_policy.allow_private_networks else 'Not allowed' }}</dd>
+      <dt>Allowed hosts</dt><dd class="mono">{{ (target_policy.allow_hosts or ['none'])|join(', ') }}</dd>
+      <dt>Allowed ranges</dt><dd class="mono">{{ (target_policy.allow_cidrs or ['none'])|join(', ') }}</dd>
+      <dt>Denied</dt><dd class="mono">{{ ((target_policy.deny_hosts or []) + (target_policy.deny_cidrs or []))|join(', ') or 'none' }}</dd>
+      <dt>Largest range</dt><dd>{{ target_policy.max_cidr_hosts }} addresses</dd>
+    </dl>
+  </section>
+</div>
+<section class="panel flush">
+  <div class="panel-head"><h2>Scoring policy</h2><span class="muted small mono">config/policy.yaml, hash {{ policy_hash }}</span></div>
+  <div class="table-wrap"><table class="t">
+    <thead><tr><th>Category</th><th>Rule</th><th class="num">CVSS</th><th>Special note</th><th>PCI DSS</th></tr></thead>
+    <tbody>{% for k, c in policy.categories.items() %}
+      <tr><td><b>{{ c.title }}</b><div class="mono small muted">{{ k }}</div></td>
+        <td class="small">{% if c.auto_fail %}<span class="tag auto">automatic failure</span>{% elif c.dos_exempt %}Not ranked (DoS only){% elif c.informational %}Informational{% else %}Fails at CVSS ≥ 4.0{% endif %}</td>
+        <td class="num small">{% if c.vector %}{{ '%.1f'|format(cvss(c.vector)) }}{% else %}engine / NVD{% endif %}</td>
+        <td class="small">{{ special_note_defs[c.special_note].title if c.special_note else '' }}</td>
+        <td class="small">{% for p in c.pci or [] %}{{ p.req }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+<section class="panel flush">
+  <div class="panel-head"><h2>Audit trail</h2><span class="muted small">Latest 60 events</span></div>
+  <div class="table-wrap"><table class="t">
+    <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Object</th><th>Detail</th></tr></thead>
+    <tbody>{% for a in audit %}<tr><td class="small nowrap">{{ a.at|dt }}</td><td class="small">{{ a.actor }}</td><td class="mono small">{{ a.action }}</td><td class="mono small">{{ a.object }}</td><td class="small">{{ a.detail|truncate(120) }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">No events yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

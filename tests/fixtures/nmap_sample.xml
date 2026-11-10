@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.93 scan initiated as: nmap -sT -Pn -sV -&#45;version-light -T4 -&#45;open -&#45;top-ports 1000 -oX nmap.xml lab -->
+<nmaprun scanner="nmap" args="nmap -sT -Pn -sV --version-light -T4 --open --top-ports 1000 -oX nmap.xml lab" start="1762617600" startstr="Sat Nov  8 16:00:00 2026" version="7.93" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="1000" services="1,3-4,6-7"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host starttime="1762617600" endtime="1762617620"><status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="172.18.0.4" addrtype="ipv4"/>
+<hostnames><hostname name="lab" type="user"/><hostname name="lab" type="PTR"/></hostnames>
+<ports><extraports state="closed" count="996"><extrareasons reason="conn-refused" count="996" proto="tcp" ports="1,3-4"/></extraports>
+<port protocol="tcp" portid="21"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="ftp" product="vsftpd" version="3.0.3" ostype="Unix" method="probed" conf="10"><cpe>cpe:/a:vsftpd:vsftpd:3.0.3</cpe></service></port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="nginx" version="1.27.0" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.27.0</cpe></service></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="nginx" version="1.27.0" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.27.0</cpe></service></port>
+<port protocol="tcp" portid="3306"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="mysql" product="MySQL" version="8.0.36" method="probed" conf="10"><cpe>cpe:/a:mysql:mysql:8.0.36</cpe></service></port>
+</ports>
+<times srtt="120" rttvar="80" to="100000"/>
+</host>
+<runstats><finished time="1762617620" timestr="Sat Nov  8 16:00:20 2026" summary="Nmap done at Sat Nov  8 16:00:20 2026; 1 IP address (1 host up) scanned in 20.10 seconds" elapsed="20.10" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

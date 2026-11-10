@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Overview{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div>
+    <h1>External scan compliance, the ASV way</h1>
+    <p class="sub">Scan your Internet-facing systems, see exactly what blocks a PASS under the ASV Program Guide rules, fix it and prove it with a rescan before the quarterly scan.</p>
+  </div>
+  <div class="actions"><a class="btn primary" href="{{ url_for('scopes') }}#new">New scope</a><a class="btn" href="{{ url_for('import_page') }}">Import results</a></div>
+</header>
+
+{% if not rows %}
+<section class="panel">
+  <h2>How a scan cycle works</h2>
+  <p class="muted">A scope groups the Internet-facing IP addresses, hostnames and web application URLs that make up one cardholder data environment.</p>
+  <ol class="steps">
+    <li><b>Define the scope</b><span>List the IP addresses, hostnames, ranges and web application URLs to test.</span></li>
+    <li><b>Authorize and scan</b><span>Confirm you may test the targets, then run ports, TLS, web application and known-vulnerability checks.</span></li>
+    <li><b>Review the findings</b><span>Each result is scored with CVSS and the automatic-failure rules, mapped to PCI DSS requirements.</span></li>
+    <li><b>Declare and dispute</b><span>Decide on discovered components, declare special notes and dispute false positives with evidence.</span></li>
+    <li><b>Fix and rescan</b><span>Rescan only what failed and combine the results into one status for the period.</span></li>
+    <li><b>Report</b><span>Attest and export the report as HTML, PDF, JSON, CSV or Markdown.</span></li>
+  </ol>
+  <p class="actions"><a class="btn primary" href="{{ url_for('scopes') }}#new">Create a scope</a> <a class="btn" href="{{ url_for('import_page') }}">Import Nessus or OpenVAS results</a></p>
+</section>
+{% else %}
+{% set current = rows|selectattr('status.state', 'equalto', 'current')|list|length %}
+<section class="stats" aria-label="Summary">
+  <div class="stat {{ 'good' if current == rows|length else 'wait' }}"><b>{{ current }}/{{ rows|length }}</b><span>Scopes compliant</span><small>Passing scan within the last three months</small></div>
+  <div class="stat {{ 'bad' if open_fail else 'good' }}"><b>{{ open_fail }}</b><span>Failing vulnerabilities</span><small>{{ _("{0} high, {1} medium in the latest scans", sev.High, sev.Medium) }}</small></div>
+  <div class="stat {{ 'wait' if pending else '' }}"><b>{{ pending }}</b><span>Disputes to review</span><small>{% if pending %}<a href="{{ url_for('disputes_page') }}">Open the review queue</a>{% else %}Nothing is waiting{% endif %}</small></div>
+  <div class="stat"><b>{{ running }}</b><span>Scans in progress</span><small>Queued or running now</small></div>
+</section>
+
+<section class="panel flush">
+  <div class="panel-head"><h2>Scopes</h2><span class="muted small">Squares show the last four three-month windows, oldest first</span></div>
+  <div class="table-wrap">
+  <table class="t">
+    <thead><tr><th>Scope</th><th>Latest result</th><th>Cadence</th><th>Status</th><th class="num">Components</th><th>Next scan</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      {% set st = r.status %}
+      <tr>
+        <td><a class="title" href="{{ url_for('scope_page', sid=r.scope.id) }}">{{ r.scope.name }}</a>
+          {% if r.scope.customer.company %}<div class="muted small">{{ r.scope.customer.company }}</div>{% endif %}</td>
+        <td>{% if st.latest %}<a href="{{ url_for('report_page', scan_id=st.latest.id) }}">{{ ui.seal(st.latest.result, 'sm') }}</a> <span class="muted small">{{ st.latest.finished_at|d }}</span>{% else %}<span class="muted">Not scanned</span>{% endif %}</td>
+        <td>{{ ui.track(st) }}</td>
+        <td><span class="chip {{ st.state }}">{{ st.label }}</span></td>
+        <td class="num">{{ r.in_scope }}{% if r.discovered %} <a class="chip discovered plain" href="{{ url_for('scope_page', sid=r.scope.id) }}" title="Discovered components need a scope decision">+{{ r.discovered }} found</a>{% endif %}</td>
+        <td class="small">{% if r.scope.schedule != 'none' %}{{ r.scope.next_run|d }} <span class="muted">({{ r.scope.schedule }})</span>{% else %}<span class="muted">Manual</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{% if recent %}
+<section class="panel flush">
+  <div class="panel-head"><h2>Recent scans</h2><a class="small" href="{{ url_for('scans') }}">All scans</a></div>
+  <div class="table-wrap">
+  <table class="t">
+    <thead><tr><th>Scan</th><th>Scope</th><th>Type</th><th>Started</th><th>State</th><th>Result</th></tr></thead>
+    <tbody>
+    {% for s in recent %}
+      <tr>
+        <td><a class="title" href="{{ url_for('scan_page', scan_id=s.id) }}">#{{ s.id }}</a> {% if s.label %}<span class="muted">{{ s.label }}</span>{% endif %}</td>
+        <td>{{ s.scope_name }}</td>
+        <td class="small">{{ s.profile if s.report_type != 'imported' else 'imported' }}{% if s.report_type == 'rescan' %}, rescan{% endif %}</td>
+        <td class="small nowrap">{{ s.created_at|dt }}</td>
+        <td><span class="chip {{ s.status }}">{{ s.status }}</span></td>
+        <td>{% if s.result %}{{ ui.seal(s.result, 'sm') }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

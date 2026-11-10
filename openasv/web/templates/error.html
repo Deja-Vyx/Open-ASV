@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }}{% endblock %}
+{% block body %}
+<section class="panel empty">
+  <h3>{{ {400: 'The request could not be processed', 404: 'Not found', 409: 'Not available yet', 501: 'Not available in this installation'}.get(code, 'Error') }}</h3>
+  <p>{{ message }}</p>
+  <p><a class="btn" href="{{ url_for('dashboard') }}">Back to overview</a></p>
+</section>
+{% endblock %}

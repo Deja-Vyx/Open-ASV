@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% set s = r.scan %}{% set ev = r.ev %}
+{% block title %}Finalise report{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div><div class="crumbs"><a href="{{ url_for('scan_page', scan_id=s.id) }}">Scan #{{ s.id }}</a></div><h1>Finalise the report</h1>
+    <p class="sub">Finalising records the scan customer attestation and the reviewer, then locks the report.</p></div>
+  <div class="actions">{{ ui.seal(ev.overall) }}</div>
+</header>
+<div class="grid-side">
+  <section class="panel">
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <h2>Scan customer attestation</h2>
+      <div class="row">
+        <label class="f"><span>Name</span><input type="text" name="name" required value="{{ r.scope.customer.contact }}"></label>
+        <label class="f"><span>Job title</span><input type="text" name="title" required value="{{ r.scope.customer.title }}"></label>
+        <label class="f"><span>Date</span><input type="date" name="date" required value="{{ today }}"></label>
+      </div>
+      <div class="attest">
+        <label class="check"><input type="checkbox" name="scope_complete" value="yes" required><span>This scan includes all components which should be in scope. Components declared out of scope are segmented from the cardholder data environment, and accurate scoping is the scan customer's responsibility.</span></label>
+        <label class="check"><input type="checkbox" name="evidence_accurate" value="yes" required><span>Evidence supplied for disputes and special-note declarations is accurate and complete.</span></label>
+      </div>
+      <h2>Review</h2>
+      <label class="f"><span>Reviewer</span><input type="text" name="reviewer" required value="{{ actor }}"></label>
+      <label class="f"><span>Review notes <em class="muted">(optional)</em></span><textarea name="reviewer_notes" rows="3"></textarea></label>
+      <button class="btn primary">Finalise and lock</button>
+    </form>
+  </section>
+  <aside class="panel">
+    <h2>Readiness</h2>
+    <ul class="checklist">{% for label, ok in ev.checklist %}<li class="{{ 'ok' if ok }}">{{ label }}</li>{% endfor %}</ul>
+    <p class="muted small">A report can be finalised with a FAIL result; pending disputes must be reviewed first.</p>
+  </aside>
+</div>
+{% endblock %}

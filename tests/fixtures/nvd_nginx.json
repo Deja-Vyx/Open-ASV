@@ -1,0 +1,82 @@
+{
+ "resultsPerPage": 2,
+ "startIndex": 0,
+ "totalResults": 2,
+ "format": "NVD_CVE",
+ "version": "2.0",
+ "timestamp": "2026-11-09T10:00:00.000",
+ "vulnerabilities": [
+  {
+   "cve": {
+    "id": "CVE-2021-23017",
+    "sourceIdentifier": "f5sirt@f5.com",
+    "published": "2021-06-01T13:15:07.853",
+    "vulnStatus": "Modified",
+    "descriptions": [
+     {
+      "lang": "en",
+      "value": "A security issue in nginx resolver was identified, which might allow an attacker to cause 1-byte memory overwrite."
+     }
+    ],
+    "metrics": {
+     "cvssMetricV31": [
+      {
+       "source": "nvd@nist.gov",
+       "type": "Primary",
+       "cvssData": {
+        "version": "3.1",
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "baseScore": 8.1,
+        "baseSeverity": "HIGH"
+       },
+       "exploitabilityScore": 2.2,
+       "impactScore": 5.9
+      }
+     ]
+    },
+    "weaknesses": [
+     {
+      "source": "nvd@nist.gov",
+      "type": "Primary",
+      "description": [
+       {
+        "lang": "en",
+        "value": "CWE-193"
+       }
+      ]
+     }
+    ],
+    "references": [
+     {
+      "url": "http://mailman.nginx.org/pipermail/nginx-announce/2021/000300.html"
+     }
+    ]
+   }
+  },
+  {
+   "cve": {
+    "id": "CVE-2019-9511",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+     {
+      "lang": "en",
+      "value": "Some HTTP/2 implementations are vulnerable to window size manipulation and stream prioritization manipulation, potentially leading to a denial of service."
+     }
+    ],
+    "metrics": {
+     "cvssMetricV31": [
+      {
+       "type": "Secondary",
+       "cvssData": {
+        "version": "3.1",
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+        "baseScore": 7.5
+       }
+      }
+     ]
+    },
+    "references": []
+   }
+  }
+ ]
+}

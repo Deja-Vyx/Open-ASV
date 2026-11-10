@@ -1,0 +1,458 @@
+# =============================================================================
+# OpenASV scoring policy
+# -----------------------------------------------------------------------------
+# Implements the compliance-determination rules of the PCI SSC "ASV Program
+# Guide" (scoring, automatic failures, special notes):
+#   * A component FAILS if it has any vulnerability with CVSS base score >= 4.0.
+#   * Some vulnerability classes are automatic failures regardless of score.
+#   * Purely denial-of-service vulnerabilities are not failures.
+#   * Special Notes do not change scoring, but the report must be treated as
+#     FAILED until the scan customer has provided all required declarations.
+#
+# CVSS source precedence (shown on every finding):
+#   1. "nvd"       score supplied by the engine from NVD / CVE metadata
+#   2. "policy"    vector assigned to the finding category below
+#   3. "engine"    vector derived from the engine's own risk rating
+# Severity bands follow the ASV report convention:
+#   Low 0.0-3.9 (pass) · Medium 4.0-6.9 (fail) · High 7.0-10.0 (fail)
+#
+# Edit this file to tune the policy; every change is visible in the report's
+# methodology appendix (policy hash).
+# =============================================================================
+version: 2
+
+categories:
+  # ---------------------------------------------------------------- automatic failures
+  sql_injection:
+    title: SQL injection
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    pci: [{req: "6.2.4", rel: direct}, {req: "6.4.1", rel: related}]
+    remediation: "Use parameterized queries or a safe ORM for every query that includes user-supplied data; never build SQL by string concatenation."
+  xss:
+    title: Cross-site scripting
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+    pci: [{req: "6.2.4", rel: direct}, {req: "6.4.1", rel: related}]
+    remediation: "Enable contextual output encoding (template auto-escaping), validate input, and deploy a restrictive Content-Security-Policy."
+  path_traversal:
+    title: Directory traversal
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "6.2.4", rel: direct}]
+    remediation: "Canonicalize paths and enforce an allow-list; never pass user input into filesystem paths."
+  header_injection:
+    title: HTTP response splitting / header injection
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+    pci: [{req: "6.2.4", rel: direct}]
+    remediation: "Strip CR/LF from any value written into response headers; use framework APIs to set headers."
+  default_account:
+    title: Default or built-in account
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    pci: [{req: "2.2.2", rel: direct}]
+    remediation: "Change or disable vendor default accounts and passwords; remove accounts that require no password."
+  unsupported_software:
+    title: Unsupported operating system or software
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L"
+    pci: [{req: "6.3.3", rel: direct}, {req: "12.3.4", rel: direct}]
+    remediation: "Upgrade to a release that still receives security updates from the vendor."
+  database_exposed:
+    title: Database reachable from the Internet
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "1.4.2", rel: direct}, {req: "1.2.5", rel: related}]
+    remediation: "Do not expose database listeners to untrusted networks; restrict access to the application tier."
+  backdoor:
+    title: Backdoor, web shell or malware
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    pci: [{req: "5.2.1", rel: related}, {req: "12.10.1", rel: related}]
+    remediation: "Isolate the system, start incident response, and rebuild from a trusted source."
+  dns_zone_transfer:
+    title: Unrestricted DNS zone transfer
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+    pci: [{req: "2.2.6", rel: related}]
+    remediation: "Allow AXFR only to designated secondary name servers (e.g. allow-transfer / TSIG)."
+  ssl_early_tls:
+    title: SSL or early TLS supported
+    auto_fail: true
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "4.2.1", rel: direct}, {req: "2.2.7", rel: related}, {req: "1.2.6", rel: related}, {req: "2.2.5", rel: related}]
+    remediation: "Disable SSLv2, SSLv3 and TLS 1.0; offer TLS 1.2 and TLS 1.3 only."
+
+  # ---------------------------------------------------------------- scored by CVSS
+  deprecated_tls:
+    title: Deprecated TLS 1.1 supported
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "4.2.1", rel: direct}]
+    remediation: "Disable TLS 1.1 (deprecated by RFC 8996)."
+  weak_cipher:
+    title: Weak cipher suites offered
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "4.2.1", rel: direct}]
+    remediation: "Offer only AEAD cipher suites with forward secrecy (ECDHE with AES-GCM or ChaCha20-Poly1305)."
+  anonymous_cipher:
+    title: Anonymous key agreement offered
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    special_note: anonymous_key_agreement
+    pci: [{req: "4.2.1", rel: direct}]
+    remediation: "Disable anonymous (aNULL/ADH/AECDH) cipher suites."
+  tls_vulnerability:
+    title: TLS implementation vulnerability
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "4.2.1", rel: direct}, {req: "6.3.3", rel: related}]
+    remediation: "Update the TLS library and apply the configuration recommended by the finding."
+  cert_untrusted:
+    title: Certificate not trusted or does not match host
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:N"
+    pci: [{req: "4.2.1", rel: direct}]
+    remediation: "Use a certificate issued by a trusted CA whose subject/SAN matches every hostname served."
+  cert_expired:
+    title: Certificate expired
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:N"
+    pci: [{req: "4.2.1", rel: direct}]
+    remediation: "Renew the certificate and monitor expiry dates."
+  cleartext_credentials:
+    title: Credentials accepted over cleartext HTTP
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    special_note: insecure_service
+    pci: [{req: "4.2.1", rel: direct}, {req: "8.3.2", rel: direct}, {req: "2.2.7", rel: related}, {req: "1.2.6", rel: related}, {req: "2.2.5", rel: related}]
+    remediation: "Serve login and payment forms over HTTPS only and redirect HTTP to HTTPS."
+  directory_listing:
+    title: Web server directory browsing
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+    special_note: directory_browsing
+    pci: [{req: "2.2.6", rel: related}]
+    remediation: "Disable automatic directory indexes on the web server."
+  sensitive_exposure:
+    title: Sensitive file or endpoint exposed
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "6.2.4", rel: related}, {req: "2.2.6", rel: related}]
+    remediation: "Block access to configuration, backup, VCS and debug resources; disable debug mode in production."
+  pan_in_response:
+    title: Full PAN disclosed in HTTP response
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "3.4.1", rel: direct}]
+    remediation: "Mask PAN when displayed (at most BIN and last four digits) and stop returning stored PAN."
+  known_cve:
+    title: Known vulnerability (CVE)
+    vector: null
+    pci: [{req: "6.3.3", rel: direct}, {req: "6.3.1", rel: related}]
+    remediation: "Apply the vendor security update."
+  vulnerable_component:
+    title: Vulnerable software version (version-based)
+    vector: null
+    potential: true
+    pci: [{req: "6.3.3", rel: direct}, {req: "6.3.1", rel: related}]
+    remediation: "Upgrade to a fixed release. If the vendor back-ported the fix, document the patch level and dispute the finding with evidence."
+  vulnerable_js_library:
+    title: JavaScript library with known vulnerabilities
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N"
+    pci: [{req: "6.3.2", rel: related}, {req: "6.3.3", rel: direct}]
+    remediation: "Upgrade the library and track third-party components in the software inventory."
+  insecure_http_methods:
+    title: Insecure HTTP methods enabled
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"
+    pci: [{req: "2.2.6", rel: related}]
+    remediation: "Disable TRACE, TRACK, PUT, DELETE and WebDAV methods that are not required."
+  missing_security_header:
+    title: Missing security header
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"
+    pci: [{req: "6.4.3", rel: related}, {req: "11.6.1", rel: related}]
+    remediation: "Add Content-Security-Policy, frame-ancestors / X-Frame-Options, X-Content-Type-Options and Strict-Transport-Security."
+  cookie_flags:
+    title: Cookie without Secure / HttpOnly / SameSite
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"
+    pci: [{req: "6.2.4", rel: related}]
+    remediation: "Set Secure, HttpOnly and SameSite on session cookies."
+  csrf:
+    title: Missing anti-CSRF token
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N"
+    pci: [{req: "6.2.4", rel: related}]
+    remediation: "Protect every state-changing request with a CSRF token or SameSite cookies."
+  info_disclosure:
+    title: Information disclosure
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N"
+    pci: [{req: "6.2.4", rel: related}]
+    remediation: "Remove version banners, stack traces and verbose error messages."
+  other_web:
+    title: Web application weakness
+    vector: null
+    pci: [{req: "6.2.4", rel: related}]
+    remediation: "See the engine's description and solution."
+  other_network:
+    title: Network service weakness
+    vector: null
+    pci: [{req: "6.3.3", rel: related}]
+    remediation: "See the engine's description and solution."
+  dos_only:
+    title: Denial-of-service vulnerability
+    dos_exempt: true
+    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    pci: [{req: "6.3.3", rel: related}]
+    remediation: "Remediate as recommended; purely DoS vulnerabilities do not affect ASV compliance."
+
+  # ---------------------------------------------------------------- informational
+  # ---------------------------------------------------------------- SSH, email, scripts
+  ssh_broken_crypto:
+    title: SSH server offers broken cryptography
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    pci: [{req: "2.2.7", rel: direct}, {req: "8.3.2", rel: related}, {req: "12.3.3", rel: related}]
+    remediation: "Disable SSH-1, CBC-mode and RC4 ciphers, MD5 MACs, group1 key exchange and DSA or sub-2048-bit RSA host keys."
+  ssh_weak_crypto:
+    title: SSH server offers weak or deprecated algorithms
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N"
+    pci: [{req: "2.2.7", rel: related}, {req: "12.3.3", rel: related}]
+    remediation: "Apply the ssh-audit hardening guide for the server software and remove the listed algorithms."
+  email_spoofing:
+    title: Email anti-spoofing controls incomplete
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N"
+    pci: [{req: "5.4.1", rel: related}]
+    remediation: "Publish an SPF record ending in -all or ~all and a DMARC record with p=quarantine or p=reject; sign mail with DKIM."
+  script_no_integrity_payment:
+    title: External script without integrity check on a payment page
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"
+    pci: [{req: "6.4.3", rel: direct}, {req: "11.6.1", rel: related}]
+    remediation: "Add Subresource Integrity (integrity and crossorigin attributes) or serve the script from your own origin, and list it in the authorized script inventory."
+  script_no_integrity:
+    title: External script without integrity check
+    vector: "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"
+    pci: [{req: "6.4.3", rel: related}]
+    remediation: "Add Subresource Integrity (integrity and crossorigin attributes) or serve the script from your own origin."
+  # ---------------------------------------------------------------- inventories and change evidence (informational)
+  script_inventory:
+    title: Page script inventory
+    informational: true
+    vector: null
+    pci: [{req: "6.4.3", rel: related}, {req: "11.6.1", rel: related}]
+    remediation: "Compare with the authorized script inventory and record a justification for each script."
+  page_change:
+    title: Page scripts or security headers changed
+    informational: true
+    vector: null
+    pci: [{req: "11.6.1", rel: related}, {req: "6.4.3", rel: related}]
+    remediation: "Confirm each change was authorized; investigate any that were not."
+  service_change:
+    title: Exposed services changed
+    informational: true
+    vector: null
+    pci: [{req: "1.2.5", rel: related}, {req: "2.2.4", rel: related}, {req: "11.3.2.1", rel: related}]
+    remediation: "Confirm each new service is approved with a business need; a significant change calls for a new external scan."
+  crypto_inventory:
+    title: Cryptographic protocol and certificate inventory
+    informational: true
+    vector: null
+    pci: [{req: "4.2.1.1", rel: related}, {req: "12.3.3", rel: related}]
+    remediation: "Keep the inventory of trusted keys, certificates, cipher suites and protocols up to date and review it at least every 12 months."
+  waf_presence:
+    title: Web application firewall
+    informational: true
+    vector: null
+    pci: [{req: "6.4.2", rel: related}, {req: "6.4.1", rel: related}]
+    remediation: "Deploy an automated technical solution in front of public-facing web applications that detects and prevents web-based attacks, keep it up to date, in blocking mode and generating audit logs."
+  auth_interface:
+    title: Login form reachable from the Internet
+    informational: true
+    vector: null
+    pci: [{req: "8.4.2", rel: related}, {req: "8.3.4", rel: related}]
+    remediation: "For personnel and administrator access, enforce multi-factor authentication and lock accounts after no more than 10 invalid attempts."
+  open_port:
+    title: Open service
+    informational: true
+    vector: null
+    pci: [{req: "1.2.5", rel: related}, {req: "2.2.4", rel: related}]
+    remediation: "Confirm each exposed service has a documented business need; close the rest."
+
+# Engine risk -> fallback vector (used only when neither NVD nor the category supplies one)
+risk_fallback:
+  critical: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"   # 9.8
+  high:     "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"   # 7.5
+  medium:   "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N"   # 5.4
+  low:      "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"   # 3.1
+  info:     null
+
+# -----------------------------------------------------------------------------
+# Special Notes to Scan Customer (ASV Program Guide). Each note requires a
+# declaration before the report can be finalised as PASS.
+# -----------------------------------------------------------------------------
+special_notes:
+  load_balancer:
+    title: Load balancers
+    description: "The component sits behind a load balancer and the scan customer has not confirmed that the environment behind it is configuration-synchronised."
+    options:
+      synchronized: "Infrastructure behind the load balancer is synchronised; documented assurance is on file"
+      internal_scans: "Not synchronised; every node is covered by internal vulnerability scans"
+  directory_browsing:
+    title: Web server directory browsing
+    description: "Directory browsing was positively identified."
+    options:
+      justified: "Business need justified; no sensitive data is exposed"
+      disabled: "Directory browsing has been disabled"
+  anonymous_key_agreement:
+    title: Anonymous (non-authenticated) key agreement
+    description: "Anonymous cipher suites were offered."
+    options:
+      justified: "Business need justified and compensating controls documented"
+      disabled: "Anonymous cipher suites have been disabled"
+  remote_access:
+    title: Remote access software
+    description: "Remote access software or administrative services were detected."
+    options:
+      justified: "Business need justified; secure configuration (MFA, strong crypto, restricted source) confirmed"
+      disabled: "Remote access has been disabled or removed from Internet exposure"
+  pos_software:
+    title: Point-of-sale software
+    description: "Point-of-sale software was detected."
+    options:
+      justified: "Must be Internet-visible; secured with default passwords changed"
+      disabled: "No longer Internet-visible"
+  embedded_external_content:
+    title: Embedded links or code from out-of-scope domains
+    description: "Pages load scripts, frames or form targets from domains outside the declared scope."
+    options:
+      trusted: "Sources are trusted and the implementation is secure (scripts inventoried per 6.4.3)"
+      removed: "The external code or links have been removed"
+  insecure_service:
+    title: Insecure services or industry-deprecated protocols
+    description: "A service using a deprecated protocol or exposing credentials in cleartext was detected."
+    options:
+      justified: "Business need justified; additional security controls documented"
+      disabled: "The service or protocol has been disabled"
+  unknown_service:
+    title: Unknown services
+    description: "A service could not be identified remotely."
+    options:
+      justified: "Service identified, business need justified, implementation secure"
+      disabled: "The service has been disabled"
+
+# -----------------------------------------------------------------------------
+# Service classification (Nmap / imported service names)
+# -----------------------------------------------------------------------------
+services:
+  database_names: [mysql, postgresql, ms-sql-s, ms-sql-m, oracle-tns, oracle, mongodb, mongod, redis, couchdb,
+                   cassandra, memcache, memcached, elasticsearch, db2, sybase, influxdb, neo4j, clickhouse]
+  database_ports: [1433, 1434, 1521, 3306, 5432, 5984, 6379, 7000, 7474, 8086, 9042, 9200, 9300, 11211, 27017, 27018]
+  remote_access_names: [ssh, telnet, ms-wbt-server, vnc, vnc-http, rdp, x11, rlogin, rsh, rexec, pptp, isakmp,
+                        openvpn, l2tp, citrix-ica, teamviewer, anydesk, radmin, pcanywheredata, winrm, wsman]
+  remote_access_ports: [22, 23, 3389, 5900, 5901, 5938, 1194, 1723, 500, 4500, 5985, 5986, 1494, 2598, 7070]
+  insecure_names: [ftp, telnet, tftp, rlogin, rsh, rexec, pop3, imap, snmp, finger, nntp, ldap, vnc, x11]
+  unknown_names: [unknown, tcpwrapped]
+  pos_keywords: [micros, aloha, squirrel, verifone, ingenico, "pos server", "point of sale", radiant, retalix]
+
+# -----------------------------------------------------------------------------
+# Classification tables. First match wins: rule id -> CWE -> keyword.
+# -----------------------------------------------------------------------------
+classification:
+  zap_plugins:
+    "40018": sql_injection
+    "40019": sql_injection
+    "40020": sql_injection
+    "40021": sql_injection
+    "40022": sql_injection
+    "40024": sql_injection
+    "40027": sql_injection
+    "40033": sql_injection        # NoSQL injection - MongoDB
+    "90018": sql_injection
+    "40012": xss
+    "40014": xss
+    "40016": xss
+    "40017": xss
+    "40026": xss
+    "6": path_traversal
+    "7": path_traversal           # remote file inclusion
+    "40003": header_injection
+    "0": directory_listing
+    "10033": directory_listing
+    "10003": vulnerable_js_library
+    "10038": missing_security_header
+    "10055": missing_security_header
+    "10020": missing_security_header
+    "10021": missing_security_header
+    "10035": missing_security_header
+    "10063": missing_security_header
+    "90004": missing_security_header
+    "10010": cookie_flags
+    "10011": cookie_flags
+    "10054": cookie_flags
+    "10202": csrf
+    "10036": info_disclosure
+    "10037": info_disclosure
+    "10023": info_disclosure
+    "90022": info_disclosure
+    "90028": insecure_http_methods
+    "10045": sensitive_exposure
+    "40028": sensitive_exposure
+    "40029": sensitive_exposure
+    "40032": sensitive_exposure
+    "40034": sensitive_exposure
+    "40035": sensitive_exposure
+    "10062": pan_in_response
+    "10017": embedded_external   # handled as a special note, not a finding
+  cwe:
+    "89": sql_injection
+    "564": sql_injection
+    "943": sql_injection
+    "79": xss
+    "80": xss
+    "22": path_traversal
+    "23": path_traversal
+    "35": path_traversal
+    "98": path_traversal
+    "113": header_injection
+    "93": header_injection
+    "1392": default_account
+    "1393": default_account
+    "521": default_account
+    "506": backdoor
+    "912": backdoor
+    "548": directory_listing
+    "538": sensitive_exposure
+    "530": sensitive_exposure
+    "540": sensitive_exposure
+    "215": sensitive_exposure
+    "359": pan_in_response
+    "295": cert_untrusted
+    "297": cert_untrusted
+    "298": cert_expired
+    "326": weak_cipher
+    "327": weak_cipher
+    "352": csrf
+    "614": cookie_flags
+    "1004": cookie_flags
+    "1275": cookie_flags
+    "693": missing_security_header
+    "1021": missing_security_header
+    "200": info_disclosure
+    "209": info_disclosure
+    "497": info_disclosure
+    "1104": vulnerable_component
+  keywords:   # case-insensitive regular expressions, evaluated against the finding title
+    - ['sql injection|sqli\b', sql_injection]
+    - ['cross[- ]site scripting|\bxss\b', xss]
+    - ['directory traversal|path traversal|local file inclusion', path_traversal]
+    - ['response splitting|header injection|crlf injection', header_injection]
+    - ['default (password|credential|account|login)|anonymous ftp|blank password|no password', default_account]
+    - ['backdoor|web ?shell|trojan|rootkit|malware', backdoor]
+    - ['zone transfer|axfr', dns_zone_transfer]
+    - ['\bsslv?[23]\b|ssl version 2|ssl version 3|tls version 1\.0|tlsv?1\.0 |early tls|tls 1\.0', ssl_early_tls]
+    - ['tls version 1\.1|tls 1\.1', deprecated_tls]
+    - ['unsupported (version|os|operating|web server|software|unix)|end[- ]of[- ]life|\beol\b|seol|no longer supported', unsupported_software]
+    - ['anonymous cipher|\banull\b|adh cipher', anonymous_cipher]
+    - ['rc4|3des|sweet32|export cipher|null cipher|weak cipher|medium strength cipher|low strength cipher', weak_cipher]
+    - ['heartbleed|poodle|robot|logjam|freak|drown|ticketbleed|beast|lucky13|crime', tls_vulnerability]
+    - ['certificate (cannot be trusted|is not trusted|signed using weak)|self[- ]signed|untrusted (root|ca|certificate)|wrong hostname|common name mismatch|mismatched (ssl )?certificate', cert_untrusted]
+    - ['certificate (expiry|expired|has expired)|expired (ssl |tls )?certificate', cert_expired]
+    - ['directory (browsing|listing|indexing)', directory_listing]
+    - ['\btrace\b|\btrack\b method|webdav|insecure http method', insecure_http_methods]
+    - ['(mysql|postgresql|microsoft sql server|mongodb|redis|memcached|elasticsearch|couchdb|oracle tns).*(detect|unauthenticated|open)', database_exposed]
+    - ['denial of service|\bdos\b', dos_only]
+
+# Findings that can be grouped (non-failing, rule-level) instead of listed per URL.
+grouping:
+  group_passing_web_findings: true
+  # One finding per component and port for these categories, whichever engines reported them
+  merge_across_engines: [cert_untrusted, cert_expired]

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block body %}
+<section class="panel" id="login">
+  <h1>Sign in to OpenASV</h1>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label class="f"><span>Your name</span><input type="text" name="name" required maxlength="80" autocomplete="name"><small>Recorded in the audit trail and on reviews.</small></label>
+    <label class="f"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
+    <button class="btn primary">Sign in</button>
+  </form>
+</section>
+{% endblock %}

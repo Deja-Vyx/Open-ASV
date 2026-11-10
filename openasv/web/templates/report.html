@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% set s = r.scan %}{% set ev = r.ev %}{% set cu = r.scope.customer if r.scope else {} %}
+{% block title %}Report — scan #{{ s.id }}{% endblock %}
+{% block body %}
+{% if not printing %}
+<div class="report-actions no-print">
+  <a class="btn sm" href="{{ url_for('scan_page', scan_id=s.id) }}">Scan</a>
+  <a class="btn sm" href="{{ url_for('findings_page', scan_id=s.id) }}">Findings workbench</a>
+  <a class="btn sm" href="{{ url_for('report_export', scan_id=s.id, fmt='pdf') }}">{{ ui.icon('download') }}PDF</a>
+  <a class="btn sm" href="{{ url_for('report_export', scan_id=s.id, fmt='json') }}">JSON</a>
+  <a class="btn sm" href="{{ url_for('report_export', scan_id=s.id, fmt='csv') }}">CSV</a>
+  <a class="btn sm" href="{{ url_for('report_export', scan_id=s.id, fmt='md') }}">Markdown</a>
+  <button class="btn sm" type="button" data-print>{{ ui.icon('print') }}Print</button>
+</div>
+{% endif %}
+<article class="doc report">
+  <header class="doc-head">
+    <div>
+      <p class="kind">External vulnerability scan report, ASV-style{% if not s.finalized_at %}, draft{% endif %}</p>
+      <h1>{{ r.scope.name if r.scope else 'Scan' }}</h1>
+      <p class="muted">Scan #{{ s.id }}, {{ r.report_type|lower }}, completed {{ r.completed|dt }}</p>
+    </div>
+    <div class="seal-wrap">
+      {{ ui.seal(ev.overall, 'lg') }}
+      <small>Valid until {{ r.expiry|d }}</small>
+    </div>
+  </header>
+  <p class="doc-disclaimer">{{ r.disclaimer }}</p>
+
+  <!-- ============================================================ Part 1 -->
+  <section class="part">
+    <h2><span class="pn">Part 1</span> Scan compliance summary</h2>
+    <div class="att">
+      <section>
+        <h3>A.1 Scan customer information</h3>
+        <dl class="kv">
+          <dt>Company</dt><dd>{{ cu.company or '—' }}</dd>
+          <dt>Contact</dt><dd>{{ cu.contact or '—' }}{% if cu.title %}, {{ cu.title }}{% endif %}</dd>
+          <dt>Telephone</dt><dd>{{ cu.phone or '—' }}</dd>
+          <dt>Email</dt><dd>{{ cu.email or '—' }}</dd>
+          <dt>Address</dt><dd>{{ [cu.address, cu.city, cu.state, cu.postal, cu.country]|select|join(', ') or '—' }}</dd>
+          <dt>Website</dt><dd>{{ cu.website or '—' }}</dd>
+        </dl>
+      </section>
+      <section>
+        <h3>A.2 Scanning party</h3>
+        <dl class="kv">
+          <dt>Organisation</dt><dd>{{ r.scanner.company }}</dd>
+          <dt>Contact</dt><dd>{{ r.scanner.contact or '—' }}</dd>
+          <dt>Email</dt><dd>{{ r.scanner.email or '—' }}</dd>
+          <dt>Tool</dt><dd>OpenASV {{ r.version }}, policy {{ r.policy_hash }}</dd>
+          <dt>PCI SSC ASV</dt><dd>No — internal ASV-style scan</dd>
+        </dl>
+      </section>
+      <section class="wide">
+        <h3>A.3 Scan status</h3>
+        <dl class="kv">
+          <dt>Date scan completed</dt><dd>{{ r.completed|dt }}</dd>
+          <dt>Scan expiration date</dt><dd>{{ r.expiry|d }} (90 days from completion)</dd>
+          <dt>Compliance status</dt><dd>{{ ui.seal(ev.overall, 'sm') }}</dd>
+          <dt>Scan report type</dt><dd>{{ r.report_type }}</dd>
+          <dt>Unique in-scope components scanned</dt><dd>{{ ev.counts.components }}</dd>
+          <dt>Identified failing vulnerabilities</dt><dd>{{ ev.counts.fail }}</dd>
+          <dt>Components found but not scanned (out of scope)</dt><dd>{{ ev.counts.out_of_scope }}</dd>
+        </dl>
+        {% if ev.reasons %}<ul class="bullets small">{% for x in ev.reasons %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+      </section>
+      <section>
+        <h3>A.4 Scan customer attestation</h3>
+        {% if s.attestation %}
+          <p class="small">{{ s.attestation.name }}, {{ s.attestation.title }}, attested on {{ s.attestation.date }} that this scan includes all components which should be in scope, that out-of-scope components are segmented from the cardholder data environment, and that any evidence supplied for disputes is accurate and complete.</p>
+        {% else %}<p class="muted small">Not yet attested. The scan customer attests when the report is finalised.</p>{% endif %}
+      </section>
+      <section>
+        <h3>A.5 Scan review</h3>
+        {% if s.attestation %}
+          <p class="small">Reviewed by {{ s.attestation.reviewer }}; report finalised {{ s.finalized_at|dt }}.{% if s.attestation.reviewer_notes %} {{ s.attestation.reviewer_notes }}{% endif %}</p>
+        {% else %}<p class="muted small">Pending review. Disputes and special-note declarations are reviewed before finalisation.</p>{% endif %}
+      </section>
+    </div>
+  </section>
+
+  <!-- ============================================================ Part 2 -->
+  <section class="part">
+    <h2><span class="pn">Part 2</span> Report summary</h2>
+    <h3>2a. Component compliance summary</h3>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th><th class="num">Special notes</th><th>Status</th></tr></thead>
+      <tbody>{% for c in ev.components %}
+        <tr class="{% if c.status == 'FAIL' %}is-fail{% endif %}"><td class="mono">{{ c.component }}</td><td class="num">{{ c.high }}</td><td class="num">{{ c.medium }}</td><td class="num">{{ c.low }}</td><td class="num">{{ c.notes }}</td><td>{{ ui.seal(c.status, 'sm') }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+
+    <h3>2b. Vulnerabilities noted for each component</h3>
+    {% if ev.scored %}
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th>Vulnerability</th><th>Severity</th><th class="num">CVSS</th><th>Status</th><th>Exceptions, false positives or compensating controls</th></tr></thead>
+      <tbody>
+      {% for c in ev.components %}{% set rows = ev.scored|selectattr('component', 'equalto', c.component)|list %}
+        {% for f in rows %}
+        <tr class="{% if f.status == 'Fail' %}is-fail{% endif %}">
+          <td class="mono nowrap">{{ c.component }}{% if f.port %}:{{ f.port }}{% endif %}</td>
+          <td><a href="#f-{{ f.key }}">{{ f.title }}</a>{% if f.cve %}<div class="muted small mono">{{ f.cve[:3]|join(', ') }}{% if f.cve|length > 3 %} +{{ f.cve|length - 3 }}{% endif %}</div>{% endif %}
+            {% if f.auto_fail and f.raw_status == 'Fail' %} <span class="tag auto">automatic failure</span>{% endif %}</td>
+          <td><span class="sev {{ f.severity }}">{{ f.severity }}</span></td>
+          <td class="num">{{ '%.1f'|format(f.cvss_score) }}</td>
+          <td>{{ ui.seal(f.status|upper, 'sm') }}</td>
+          <td class="small">{{ f.exception_label }}{% if f.dispute and f.dispute.status == 'pending' %}Dispute pending review{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% if c.solutions %}<tr><td></td><td colspan="5" class="small"><b>Consolidated solution:</b> {{ c.solutions|join('; ') }}.</td></tr>{% endif %}
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted">No vulnerabilities were noted.</p>{% endif %}
+
+    <h3>2c. Special notes</h3>
+    {% if ev.notes %}
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th>Special note</th><th>Item noted</th><th>Scan customer declaration</th></tr></thead>
+      <tbody>{% for n in ev.notes %}
+        <tr><td class="mono nowrap">{{ n.component }}{% if n.port %}:{{ n.port }}{% endif %}</td><td>{{ n.title }}</td><td class="small">{{ n.detail }}</td>
+          <td class="small">{% if n.declaration %}{{ special_note_defs[n.type].options[n.declaration.option] }}. {{ n.declaration.statement }} <span class="muted">({{ n.declaration.declared_by }}, {{ n.declaration.declared_at|d }})</span>{% else %}<span class="chip pending">declaration required</span>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <p class="muted small">Special notes do not change CVSS scoring, but the scan cannot pass until every note is declared.</p>
+    {% else %}<p class="muted">No special notes.</p>{% endif %}
+
+    <h3>2d. Scope review</h3>
+    {% if ev.discovered or ev.counts.out_of_scope %}
+    <ul class="bullets small">
+      {% for d in ev.discovered %}<li><span class="mono">{{ d.value }}</span>: discovered ({{ d.reason }}); must be scanned or declared out of scope.</li>{% endfor %}
+      {% for v in r.meta.out_of_scope or [] %}<li><span class="mono">{{ v }}</span>: declared out of scope by the scan customer.</li>{% endfor %}
+    </ul>
+    {% else %}<p class="muted">No additional components were discovered.</p>{% endif %}
+  </section>
+
+  <!-- ============================================================ Part 3 -->
+  <section class="part">
+    <h2><span class="pn">Part 3</span> Vulnerability details</h2>
+    {% for f in ev.scored %}
+    <div class="fcard {% if f.status == 'Fail' %}is-fail{% endif %}" id="f-{{ f.key }}">
+      <header>
+        <h3>{{ f.title }}</h3>
+        <span><span class="sev {{ f.severity }}">{{ f.severity }} {{ '%.1f'|format(f.cvss_score) }}</span> {{ ui.seal(f.status|upper, 'sm') }}</span>
+      </header>
+      <dl class="kv">
+        <dt>Component</dt><dd class="mono">{{ f.component }}{% if f.port %}:{{ f.port }}/{{ f.protocol }}{% endif %}</dd>
+        <dt>Category</dt><dd>{{ f.category_title }}{% if f.auto_fail %} <span class="tag auto">automatic failure</span>{% endif %}{% if f.potential %} <span class="tag potential">version-based</span>{% endif %}</dd>
+        <dt>Compliance</dt><dd>{{ f.status_reason }}</dd>
+        <dt>CVSS</dt><dd>{{ '%.1f'|format(f.cvss_score) }} {% if f.cvss_vector %}<span class="mono small">{{ f.cvss_vector }}</span>{% endif %} <span class="muted small">source: {{ f.cvss_source }}</span>{% if f.original_cvss is defined %} <span class="muted small">(engine score {{ f.original_cvss }})</span>{% endif %}</dd>
+        {% if f.cve %}<dt>CVE</dt><dd class="mono small">{{ f.cve|join(', ') }}</dd>{% endif %}
+        {% if f.cwe %}<dt>CWE</dt><dd class="mono small">{{ f.cwe|join(', ') }}</dd>{% endif %}
+        {% if f.url %}<dt>Location</dt><dd class="mono small">{{ f.method }} {{ f.url }}{% if f.param %} (parameter {{ f.param }}){% endif %}{% if f.instances|length > 1 %} and {{ f.instances|length - 1 }} more{% endif %}</dd>{% endif %}
+        {% if f.evidence %}<dt>Evidence</dt><dd><pre class="evidence">{{ f.evidence }}</pre></dd>{% endif %}
+        {% if f.description %}<dt>Description</dt><dd class="small">{{ f.description|truncate(700) }}</dd>{% endif %}
+        <dt>Remediation</dt><dd class="small">{{ f.remediation }}{% if f.engine_solution %}<br><span class="muted">{{ f.engine|upper if f.engine in ('zap', 'nvd') else f.engine }}: {{ f.engine_solution|truncate(400) }}</span>{% endif %}</dd>
+        <dt>PCI DSS</dt><dd class="small">{% for p in f.pci %}{{ p.req }} {{ r.pci_titles.get(p.req, '') }} ({{ 'direct' if p.rel == 'direct' else 'related' }}){% if not loop.last %}; {% endif %}{% endfor %}</dd>
+        {% if f.dispute %}<dt>Dispute</dt><dd class="small">{{ dispute_kinds[f.dispute.kind] }}, {{ f.dispute.status }}{% if f.dispute.reviewer %} by {{ f.dispute.reviewer }}: {{ f.dispute.review_notes }}{% endif %}</dd>{% endif %}
+        <dt>Detected by</dt><dd class="small">{{ f.engine }}{% if f.rule_id %}, rule {{ f.rule_id }}{% endif %}</dd>
+      </dl>
+    </div>
+    {% else %}<p class="muted">No vulnerabilities were noted.</p>{% endfor %}
+
+    {% if ev.services %}
+    <h3>Exposed services</h3>
+    <p class="muted small">Every listening service should have a documented business need (Requirements 1.2.5 and 2.2.4).</p>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th>Port</th><th>Service</th></tr></thead>
+      <tbody>{% for f in ev.services %}<tr><td class="mono">{{ f.component }}</td><td class="mono">{{ f.port }}/{{ f.protocol }}</td><td class="small">{{ f.evidence }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+
+    {% if ev.evidence %}
+    <h3>Inventories and change evidence</h3>
+    <p class="muted small">Not scored. These records support requirements that an external scan can inform but not decide, such as script and certificate inventories or changes since the previous scan.</p>
+    {% for f in ev.evidence %}
+    <article class="fcard">
+      <header><div><b>{{ f.title }}</b><br><span class="mono small">{{ f.component }}{% if f.port %}:{{ f.port }}{% endif %}</span></div>
+        <span class="chip">{{ f.engine }}</span></header>
+      <dl class="kv">
+        <dt>Evidence</dt><dd><pre class="evidence">{{ f.evidence }}</pre></dd>
+        <dt>Requirement</dt><dd class="small">{% for p in f.pci %}{{ p.req }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+        <dt>Remediation</dt><dd class="small">{{ f.remediation }}</dd>
+      </dl>
+    </article>
+    {% endfor %}
+    {% endif %}
+  </section>
+
+  <!-- ============================================================ Appendices -->
+  <section class="part">
+    <h2><span class="pn">Appendix A</span> {{ r.standard }} requirement mapping</h2>
+    <p class="muted small">Direct: the finding is technical evidence for the requirement. Related: the finding informs the requirement. The scan as a whole supports Requirement 11.3.2.</p>
+    <p class="muted small">This is an unauthenticated scan from outside the network. It can only inform requirements that are observable from the Internet; policies, procedures, internal systems and stored data need other assessment methods.</p>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Requirement</th><th>Relation</th><th class="num">Failing</th><th class="num">Passing</th><th class="num">Evidence</th><th>Finding categories</th></tr></thead>
+      <tbody>{% for q in r.requirements %}
+        <tr class="{% if q.fail %}is-fail{% endif %}"><td><b>{{ q.req }}</b> <span class="small">{{ q.title }}</span></td><td class="small">{{ 'direct' if q.direct else 'related' }}</td><td class="num">{{ q.fail }}</td><td class="num">{{ q.pass }}</td><td class="num">{{ q.info }}</td><td class="small">{% for c in q.categories %}{{ c }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+      {% else %}<tr><td colspan="6" class="muted">No findings to map.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  <section class="part">
+    <h2><span class="pn">Appendix B</span> Methodology and limitations</h2>
+    <dl class="kv">
+      <dt>Profile</dt><dd>{{ r.profile.label }}. {{ r.profile.summary }}</dd>
+      <dt>Started</dt><dd>{{ s.started_at|dt }}</dd>
+      <dt>Authorization</dt><dd class="small">{{ s.authorization }}</dd>
+      <dt>Privileged scanning</dt><dd>{{ 'Yes (TCP SYN, UDP and OS fingerprinting)' if r.meta.privileged else 'No (TCP connect only; UDP not covered)' }}</dd>
+      {% if r.meta.crawled %}<dt>Web pages crawled</dt><dd>{% for u, n in r.meta.crawled.items() %}<span class="mono small">{{ u }}</span>: {{ n }}<br>{% endfor %}</dd>{% endif %}
+      <dt>Engine versions</dt><dd class="small">{% for k, v in (r.meta.versions or {}).items() %}{{ k }}: <span class="mono">{{ v }}</span><br>{% endfor %}</dd>
+    </dl>
+    <h3>Coverage</h3>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Area</th><th>Engine</th><th>What is tested</th></tr></thead>
+      <tbody>{% for a, e, d in r.coverage %}<tr><td>{{ a }}</td><td>{{ e }}</td><td class="small">{{ d }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <h3>Scoring rules</h3>
+    <ul class="bullets small">
+      <li>A component fails when it has a vulnerability with a CVSS base score of 4.0 or higher, or a vulnerability in an automatic-failure category, regardless of score.</li>
+      <li>Purely denial-of-service vulnerabilities are not ranked as failures.</li>
+      <li>NVD or engine-supplied CVSS scores are used where available; otherwise the policy assigns a CVSS v3.1 vector per category (source shown on each finding).</li>
+      <li>Special notes and discovered components must be resolved by the scan customer before the scan can pass. Inconclusive scans are reported as failed until resolved.</li>
+    </ul>
+    {% if ev.inconclusive %}<h3>Inconclusive conditions</h3><ul class="bullets small">{% for x in ev.inconclusive %}<li>{{ x }}</li>{% endfor %}</ul>{% if ev.inconclusive_resolved %}<p class="small">An inconclusive-scan dispute was accepted.</p>{% endif %}{% endif %}
+    <h3>Limitations</h3>
+    <ul class="bullets small">
+      <li>The scan is unauthenticated, as for ASV scans; content behind authentication was not tested.</li>
+      <li>Version-based findings may be false positives where vendors back-port fixes; dispute them with patch-level evidence.</li>
+      <li>Business-logic, access-control and procedural controls are outside the scope of an external vulnerability scan.</li>
+      {% for x in r.meta.limitations or [] %}<li>{{ x }}</li>{% endfor %}
+    </ul>
+    <p class="muted small">Generated {{ r.generated|dt }} by OpenASV {{ r.version }}.</p>
+  </section>
+</article>
+{% endblock %}

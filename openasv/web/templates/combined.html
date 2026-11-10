@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Combined result — {{ sc.name }}{% endblock %}
+{% block body %}
+{% if not printing %}
+<header class="pagehead">
+  <div><div class="crumbs"><a href="{{ url_for('scope_page', sid=sc.id) }}">{{ sc.name }}</a></div><h1>Combine scans</h1>
+    <p class="sub">Aggregate a failing scan and its rescans into one result for the three-month period. Each component takes its most recent result.</p></div>
+</header>
+<section class="panel flush">
+  <form method="get">
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th><span class="sr">Include</span></th><th>Scan</th><th>Type</th><th>Completed</th><th>Result</th></tr></thead>
+      <tbody>{% for s in scans %}
+        <tr><td><input type="checkbox" name="scan" value="{{ s.id }}" {% if s.id in ids %}checked{% endif %} aria-label="Include scan {{ s.id }}"></td>
+          <td>#{{ s.id }} <span class="muted small">{{ s.label }}</span></td><td class="small">{{ s.report_type }}</td><td class="small">{{ s.finished_at|dt }}</td><td>{{ ui.seal(s.result, 'sm') }}</td></tr>
+      {% else %}<tr><td colspan="5" class="muted">No completed scans.</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="actions"><button class="btn primary">Combine selected</button>{% if data %}<a class="btn" href="{{ request.full_path }}&amp;format=pdf">{{ ui.icon('download') }}PDF</a>{% endif %}</div>
+  </form>
+</section>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+{% endif %}
+
+{% if data %}{% set c = data.c %}
+<article class="doc report">
+  <header class="doc-head">
+    <div><p class="kind">Combined external scan result, ASV-style</p><h1>{{ sc.name }}</h1>
+      <p class="muted">Scans {% for s in c.scans %}#{{ s.id }}{% if not loop.last %}, {% endif %}{% endfor %}, {{ c.first|d }} to {{ c.last|d }}</p></div>
+    <div class="seal-wrap">{{ ui.seal(c.overall, 'lg') }}<small>Valid until {{ c.expiry|d }}</small></div>
+  </header>
+  <p class="doc-disclaimer">{{ data.disclaimer }}</p>
+  <section class="part">
+    <h2><span class="pn">Cover</span> Combined compliance status</h2>
+    {% if c.reasons %}<ul class="bullets">{% for x in c.reasons %}<li>{{ x }}</li>{% endfor %}</ul>{% else %}<p>Every component passes in its most recent scan, and every failure from earlier scans was remediated and validated by a rescan.</p>{% endif %}
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th>Result from scan</th><th>Status</th></tr></thead>
+      <tbody>{% for x in c.components %}<tr class="{% if x.status == 'FAIL' %}is-fail{% endif %}"><td class="mono">{{ x.component }}</td><td>#{{ x.scan_id }}</td><td>{{ ui.seal(x.status, 'sm') }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section class="part">
+    <h2><span class="pn">Detail</span> Failures remediated and validated by rescan</h2>
+    {% if c.remediated %}
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th>Vulnerability</th><th>Failed in</th><th>Validated in</th></tr></thead>
+      <tbody>{% for f in c.remediated %}<tr><td class="mono">{{ f.component }}{% if f.port %}:{{ f.port }}{% endif %}</td><td>{{ f.title }}</td><td>#{{ f.scan_id }}</td><td>#{{ f.validated_by }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">None.</p>{% endif %}
+    {% if c.failing %}
+    <h3>Still failing</h3>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Component</th><th>Vulnerability</th><th>Severity</th><th>Scan</th></tr></thead>
+      <tbody>{% for f in c.failing %}<tr class="is-fail"><td class="mono">{{ f.component }}{% if f.port %}:{{ f.port }}{% endif %}</td><td>{{ f.title }}</td><td><span class="sev {{ f.severity }}">{{ f.severity }} {{ f.cvss_score }}</span></td><td>#{{ f.scan_id }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+    <p class="muted small">Generated {{ data.generated|dt }} by OpenASV {{ data.version }}. Attach the individual scan reports listed above.</p>
+  </section>
+</article>
+{% endif %}
+{% endblock %}

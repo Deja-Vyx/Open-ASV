@@ -1,0 +1,11 @@
+# Runtime dependencies (same as pyproject.toml). For IDEs that look for requirements.txt.
+flask>=3.0,<4
+pyyaml>=6.0
+requests>=2.31
+dnspython>=2.6
+waitress>=3.0
+# Optional: PDF export (needs Pango; see README). Remove if it does not install on your platform.
+weasyprint>=62
+# Optional scan engines that install with pip (SSH audit, web application firewall detection)
+ssh-audit>=3.3
+wafw00f>=2.2

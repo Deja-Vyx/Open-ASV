@@ -1,0 +1,35 @@
+# PCI DSS v4.0.1 requirements referenced by OpenASV findings.
+# Titles are short paraphrases for navigation only — always read the official
+# standard (https://www.pcisecuritystandards.org) for the authoritative wording.
+# Optional: add "testing_procedures" lists to show procedure IDs in reports.
+standard: "PCI DSS v4.0.1"
+requirements:
+  "1.2.5":  {title: "Allowed services, protocols and ports are identified, approved and have a business need"}
+  "1.2.6":  {title: "Security features are defined and implemented for insecure services, protocols and ports in use"}
+  "1.4.2":  {title: "Inbound traffic from untrusted networks to trusted networks is restricted"}
+  "2.2.2":  {title: "Vendor default accounts are managed (changed or disabled)"}
+  "2.2.4":  {title: "Only necessary services, protocols, daemons and functions are enabled"}
+  "2.2.5":  {title: "Insecure services, protocols or daemons are justified and secured"}
+  "2.2.6":  {title: "System security parameters are configured to prevent misuse"}
+  "2.2.7":  {title: "Non-console administrative access is encrypted with strong cryptography"}
+  "3.4.1":  {title: "PAN is masked when displayed"}
+  "4.2.1":  {title: "Strong cryptography and valid certificates protect PAN over open, public networks"}
+  "4.2.1.1": {title: "An inventory of trusted keys and certificates used to protect PAN in transit is maintained"}
+  "5.2.1":  {title: "Anti-malware solutions are deployed on system components at risk"}
+  "5.4.1":  {title: "Processes and automated mechanisms detect and protect personnel against phishing attacks"}
+  "6.2.4":  {title: "Software engineering techniques prevent common software attacks"}
+  "6.3.1":  {title: "Security vulnerabilities are identified and managed"}
+  "6.3.2":  {title: "An inventory of bespoke and third-party software components is maintained"}
+  "6.3.3":  {title: "System components are protected from known vulnerabilities by installing patches"}
+  "6.4.1":  {title: "Public-facing web applications are protected against attacks"}
+  "6.4.2":  {title: "An automated technical solution continually detects and prevents web-based attacks"}
+  "6.4.3":  {title: "Payment page scripts are authorized, integrity-checked and inventoried"}
+  "8.3.2":  {title: "Strong cryptography renders authentication factors unreadable during transmission and storage"}
+  "8.3.4":  {title: "Invalid authentication attempts are limited (lockout after not more than 10 attempts)"}
+  "8.4.2":  {title: "MFA is implemented for all non-console access into the CDE"}
+  "11.3.2": {title: "External vulnerability scans are performed at least once every three months"}
+  "11.3.2.1": {title: "External vulnerability scans are performed after any significant change"}
+  "11.6.1": {title: "Unauthorized changes to payment pages and HTTP headers are detected"}
+  "12.3.3": {title: "Cryptographic cipher suites and protocols in use are documented and reviewed at least every 12 months"}
+  "12.3.4": {title: "Hardware and software technologies in use are reviewed (end-of-life planning)"}
+  "12.10.1": {title: "An incident response plan exists and is ready to be activated"}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Import results{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div><h1>Import results</h1><p class="sub">Score results from another scanner with the ASV policy, special-note rules and PCI DSS mapping, then dispute and report them here.</p></div>
+</header>
+<div class="grid-side">
+  <section class="panel">
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <label class="f"><span>Results file</span><input type="file" name="file" required></label>
+      <label class="f"><span>Format</span><select name="format"><option value="">Detect automatically</option>{% for k, v in formats.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+      <div class="row">
+        <label class="f"><span>Into scope</span><select name="scope_id"><option value="">New scope</option>{% for s in scopes %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
+        <label class="f"><span>New scope name</span><input type="text" name="new_scope" placeholder="Imported results"></label>
+      </div>
+      <button class="btn primary">Import and score</button>
+    </form>
+  </section>
+  <aside class="panel">
+    <h2>Supported formats</h2>
+    <ul class="bullets small">
+      <li><b>Tenable Nessus</b>: .nessus (v2) export, including Nessus Essentials.</li>
+      <li><b>Greenbone / OpenVAS</b>: XML report export.</li>
+      <li><b>OWASP ZAP</b>: traditional JSON report.</li>
+      <li><b>Nuclei</b>: <span class="mono">-jsonl</span> output.</li>
+      <li><b>Nmap</b>: <span class="mono">-oX</span> output.</li>
+      <li><b>testssl.sh</b>: <span class="mono">--jsonfile</span> output.</li>
+    </ul>
+    <p class="muted small">Hosts in the file are added to the scope. Card numbers found in evidence are masked on import.</p>
+  </aside>
+</div>
+{% endblock %}
