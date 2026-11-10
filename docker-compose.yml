@@ -6,7 +6,7 @@ name: openasv
 services:
   openasv:
     build: .
-    image: ghcr.io/deja-vyx/openasv:latest
+    image: ghcr.io/deja-vyx/open-asv:latest
     container_name: openasv
     ports:
       - "127.0.0.1:${OPENASV_PORT:-9100}:9100"

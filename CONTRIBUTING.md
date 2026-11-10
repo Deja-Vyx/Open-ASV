@@ -16,7 +16,7 @@ Thanks for helping make external scanning and PCI DSS readiness more accessible.
 ## Development setup
 
 ```bash
-git clone https://github.com/Deja-Vyx/Open-ASV.git && cd openasv
+git clone https://github.com/Deja-Vyx/Open-ASV.git && cd Open-ASV
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev,pdf]"
 pytest

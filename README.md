@@ -100,7 +100,7 @@ Requirements: Docker with Compose, about 5 GB of disk and 4 GB of memory for Doc
 
 ```bash
 git clone https://github.com/Deja-Vyx/Open-ASV.git
-cd openasv
+cd Open-ASV
 cp .env.example .env            # set ZAP_API_KEY and, if others can reach the host, OPENASV_ADMIN_PASSWORD
 docker compose up -d --build
 ```

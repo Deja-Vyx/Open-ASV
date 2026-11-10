@@ -50,7 +50,7 @@ Cần Docker kèm Compose, khoảng 5 GB đĩa trống và 4 GB RAM cho Docker (
 
 ```bash
 git clone https://github.com/Deja-Vyx/Open-ASV.git
-cd openasv
+cd Open-ASV
 cp .env.example .env            # đặt ZAP_API_KEY; đặt OPENASV_ADMIN_PASSWORD nếu người khác truy cập được máy
 docker compose up -d --build
 ```
